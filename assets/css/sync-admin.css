@@ -1,0 +1,187 @@
+/* 
+    Document   : sync-admin
+    Created on : Feb 11, 2015, 11:44:35 AM
+    Author     : dave
+    Description: styles for sync admin pages
+*/
+
+/* styling for metabox */
+#sync-logo {
+	margin-left: 5px;
+	width: 125px;
+	height: 45px;
+	border: none;
+/*	background-image: url('../imgs/wpsitesync-logo.svg'); */
+/*	background-image: url('../imgs/wpsitesync-logo-blue.png'); */
+	background-size: contain; /* 100px 82px; */
+	vertical-align: top;
+}
+.notice #sync-logo {
+	margin-top: .5rem;
+}
+#spectrom_sync {
+/*	border-color: #21759b; */
+	border: 1px solid #4accf6;
+}
+#spectrom_sync h3.hndle {
+	background-image: url('../imgs/spectrom_logo_nos.png');
+	background-repeat: no-repeat;
+	background-size: 18px 18px; /* contain; */
+	background-position: 4px 4px;
+	background-color: #21759b;
+}
+#spectrom_sync h3.hndle span {
+	padding-top: 3px;
+	margin-left: 2px;
+	color: white;
+	font-weight: bold;
+	font-family: sans-serif;
+	text-shadow: none;
+}
+#spectrom_sync .inside {
+	padding-bottom: 17px;
+}
+#spectrom_sync .sync-panel {
+	display: inline-block;
+}
+#spectrom_sync .sync-panel-left {
+	width: 67%;
+	padding-right: 3px;
+	padding-left: 2px;
+	word-break: break-all;
+}
+#spectrom_sync .sync-panel-right {
+	width: 25%;
+	padding-left: 3px;
+	vertical-align: top;
+}
+#spectrom_sync #sync-contents {
+	margin: 0.5rem -3px 0 -3px;
+}
+/* button display */
+#spectrom_sync #sync-button-details {
+	margin-left: 0.75em;
+	display: block;
+/*	margin: 0 auto; */
+	float: right;
+margin-right: -0.5rem;
+	width: 35px;
+	height: 35px;
+	padding: 2px 1px;
+}
+#spectrom_sync #sync-button-details span {
+	font-size: 130%;
+	padding-top: 4px;
+}
+
+#spectrom_sync #sync-details-container {
+
+}
+
+/* operation buttons */
+#spectrom_sync .sync-button {
+	width: 49%;
+	margin-left: .2rem;
+	padding-left: 1px;
+	padding-right: 1px;
+font-size: 95%;
+}
+#spectrom_sync .sync-button:nth-child(odd) {
+	margin-left: 0;
+}
+/*#spectrom_sync */ .sync-button-icon {
+/*	font-size: 115%; */
+	padding-top: 7px;
+padding-top: 3px;
+	padding-left: 0;
+padding-right: 5px;
+	margin-left: -7px;
+/*	font-weight: bolder; */
+}
+#spectrom_sync .sync-button-icon.sync-button-icon-rotate {
+	-moz-transform: rotate(180deg);        /* FF */
+	-ms-transform: rotate(180deg);         /* IE9 */
+	-o-transform: rotate(180deg);          /* Opera */
+	-webkit-transform: rotate(180deg);     /* Chrome and other webkit browsers */
+	transform: rotate(180deg);
+padding-bottom: 3px;
+padding-left: 3px;
+}
+#spectrom_sync #sync-message-dismiss .dashicons {
+	font-size: 85%;
+	margin-left: .2rem;
+	vertical-align: baseline;
+	color: gray;
+}
+#spectrom_sync #sync-message-dismiss .dashicons:hover {
+	color: red;
+	cursor: pointer;
+}
+
+#spectrom_sync #sync-message-container {
+	margin: 0.5rem 2px 0.5rem 0;
+	border: 1px solid #dddddd;
+	padding: 3px 5px; 
+}
+#spectrom_sync #sync-message-container #sync-content-anim {
+	margin-right: 0.75rem;
+}
+
+#spectrom_sync #sync-message-container #sync-message span.error {
+	color: red;
+}
+
+/* styling for button */
+
+.spectrom-sync-settings .sync-settings-logo {
+	float: left;
+}
+.spectrom-sync-settings table.form-table {
+	width: 450px;
+width: 100%;
+}
+.spectrom-sync-settings.spectrom-sync-settings-tab-license table.form-table tr td p {
+	margin-bottom: 0.7rem;
+}
+.spectrom-sync-settings.spectrom-sync-settings-tab-license table.form-table tr:hover {
+	background-color: #e5e5e5;;
+}
+
+.spectrom-sync-settings #connect-success-indicator { margin-left: 0.7rem; margin-top: 0.5rem; font-size: 120%; font-weight:bolder; }
+/* .spectrom-sync-settings #connect-success-indicator.fa-check { color: green; } */
+/* .spectrom-sync-settings #connect-success-indicator.fa-close { color: red; } */
+.spectrom-sync-settings #connect-success-indicator.dashicons-yes { color: green; }
+.spectrom-sync-settings #connect-success-indicator.dashicons-no { color: red; }
+
+.spectrom-sync-settings span.sync-license-status {
+	display: inline-block;
+	margin: 0 .7rem;
+	width: 8rem;
+}
+.spectrom-sync-settings span.sync-license-status > span {
+	font-weight: bold;
+	text-transform: capitalize;
+}
+.spectrom-sync-settings button.sync-license {
+	width: 80px;
+	margin: 0 .7rem;
+}
+
+.spectrom-sync-settings div.spectrom-page {
+	float: left;
+width: 80%;
+}
+
+.spectrom-sync-settings .spectrom-page .wrap {
+	float: left;
+width: 70%;
+}
+
+.spectrom-sync-settings .spectrom-page .spectrom-sync-screenshots {
+	float: left;
+}
+
+/** styles for the settings page **/
+.spectrom-sync-settings #form-spectrom-sync table.form-table th, #form-spectrom-sync table.form-table td {
+	padding: .4rem 0;
+}

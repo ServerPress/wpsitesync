@@ -106,6 +106,19 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.2.2 - Oct 7, 2016 =
+* Fix: Add missing file.
+
+= 1.2.1 - Oct 7, 2016 =
+* Fix: Update collation on created table for some hosts.
+* Enhancement: Add checks for updates to add-ons via WPSiteSync.com site.
+* Fix: Sanitize password hash for encryption algorithms. (thanks Jonah W.)
+* Enhancement: Specify timeout for API calls.
+* Enhancement: Remove any error output interfering with JSON data in API calls.
+* Enhancement: Improve error handling/recovery on API calls.
+* Fix: Update checks for allowed post types. (thanks Cathy E.)
+* Enhancement: Improve UX for License Keys.
+
 = 1.2 - Sep 7, 2016 =
 * Fix: Changes to resolve authentication issues. (thanks to Craig S., Cathy E., Josh C. and Jason H.)
 * Enhancement: Some optimizations and code cleanup.

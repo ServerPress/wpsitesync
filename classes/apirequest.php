@@ -30,6 +30,7 @@ class SyncApiRequest implements SyncApiHeaders
 	const ERROR_NO_PERMISSION = 23;
 	const ERROR_INVALID_IMG_TYPE = 24;
 	const ERROR_POST_NOT_FOUND = 25;
+	const ERROR_CONTENT_UPDATE_FAILED = 26;
 
 	const NOTICE_FILE_EXISTS = 1;
 	const NOTICE_CONTENT_SYNCD = 2;
@@ -140,6 +141,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($data, TRUE))
 //		$remote_args['headers'][self::HEADER_SITE_KEY] = WPSiteSyncContent::get_option('site_key'); // $model->generate_site_key();
 		$remote_args['headers'][self::HEADER_SITE_KEY] = SyncOptions::get('site_key'); // $model->generate_site_key();
 //SyncDebug::log(__METHOD__.'() plugin sitekey=' . WPSiteSyncContent::get_option('site_key') . ' // option sitekey=' . SyncOptions::get('site_key'));
+		if (!isset($remote_args['timeout']))
+			$remote_args['timeout'] = 30;
 
 		// send data where it's going
 //		$url = $this->host . '/' . WPSiteSyncContent::API_ENDPOINT . '?action=' . $action;
@@ -172,8 +175,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api result from "' . $action . '"
 			}
 
 			// API request went through, check for error_code returned in JSON results
-
-			$response->response = json_decode($request['body']);
+			$request_body = $this->_adjust_response_body($request['body']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response body: ' . $request_body); // $request['body']);
+			$response->response = json_decode($request_body /*$request['body']*/);
 			// TODO: convert error/notice codes into strings at this point.
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' received response from Target for "' . $action . '":');
 SyncDebug::log(var_export($response->response, TRUE));
@@ -261,6 +265,24 @@ else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error code=' . $response->ge
 
 		// API request successful. Return results to caller.
 		return $response;
+	}
+
+	/**
+	 * Strips any error messages contained withing JSON response content
+	 * @param string $body The response body of a JSON API request
+	 * @return string The response body with any error messages stripped off
+	 */
+	private function _adjust_response_body($body)
+	{
+		if ('{' !== $body[0]) {
+			$pos = strpos($body, '{"error_code":');
+			if (FALSE !== $pos)
+				$body = substr($body, $pos);
+			$pos = strpos($body, '"}}');
+			if (FALSE !== $pos)
+				$body = substr($body, 0, $pos + 3);
+		}
+		return $body;
 	}
 
 	/**
@@ -858,6 +880,7 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 		case self::ERROR_NO_PERMISSION:			$error = __('You do not have permission to do this. Check configured user on Target.', 'wpsitesynccontent'); break;
 		case self::ERROR_INVALID_IMG_TYPE:		$error = __('The image uploaded is not a valid image type.', 'wpsitesynccontent'); break;
 		case self::ERROR_POST_NOT_FOUND:		$error = __('Requested post cannot be found.', 'wpsitesynccontent'); break;
+		case self::ERROR_CONTENT_UPDATE_FAILED:	$error = __('Content update on Target failed.', 'wpsitesynccontent'); break;
 
 		default:
 			$error = apply_filters('spectrom_sync_error_code_to_text', sprintf(__('Unrecognized error: %d', 'wpsitesynccontent'), $code), $code);

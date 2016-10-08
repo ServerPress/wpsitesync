@@ -184,7 +184,7 @@ class SyncAdmin
 		echo '<div id="sync-working-msg"><img src="', WPSiteSyncContent::get_asset('imgs/ajax-loader.gif'), '" />', '</div>';
 		echo '<div id="sync-success-msg">', __('Content successfully sent to Target system.', 'wpsitesynccontent'), '</div>';
 		if (!class_exists('WPSiteSync_Pull', FALSE))
-				echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Coming soon in Premium Membership!', 'wpsitesynccontent'), '</div></div>';
+				echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Please activate the Pull extension.', 'wpsitesynccontent'), '</div></div>';
 		echo '</div>';
 
 		echo '</div>'; // #sync-contents

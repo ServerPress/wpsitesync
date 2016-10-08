@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.2
+Version: 1.2.2
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,18 +24,18 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.2';
+		const PLUGIN_VERSION = '1.2.2';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
 		const DEBUG = TRUE;
 
-		/* options data */
-		private static $_config = NULL;
-		/* array of paths to use in autoloading */
-		private static $_autoload_paths = array();
+		private static $_license = NULL;				// instance of licensing module
+		private static $_autoload_paths = array();		// array of paths to use in autoloading
 
-		const API_ENDPOINT = 'wpsitesync_api';		// name of endpoint: /wpsitesync_api/ - underscores less likely in name
+		const API_ENDPOINT = 'wpsitesync_api';			// name of endpoint: /wpsitesync_api/ - underscores less likely in name
+
+		private $_performing_upgrade = FALSE;			// set to TRUE during plugin update process
 
 		private function __construct()
 		{
@@ -51,6 +51,10 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 			add_action('wp_ajax_spectrom_sync', array(&$this, 'check_ajax_query'));
 
 			add_action('plugins_loaded', array(&$this, 'plugins_loaded'));
+
+			// the following are needed during add-on updates to fix problem with long file names on Windows
+			add_filter('wp_unique_filename', array($this, 'filter_unique_filename'), 10, 4);
+			add_filter('upgrader_pre_download', array($this, 'filter_upgrader_download'), 10, 3);
 
 			if (is_admin())
 				SyncAdmin::get_instance();
@@ -164,12 +168,87 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 		}
 
 		/**
+		 * Return instance of licensing object
+		 * @return SyncLicensing
+		 */
+		public function get_license()
+		{
+			return self::$_license;
+		}
+
+		/**
 		 * Callback for the 'plugins_loaded' action. Load text doamin and notify other WPSiteSync add-ons that WPSiteSync is loaded.
 		 */
 		public function plugins_loaded()
 		{
+//SyncDebug::log(__METHOD__.'()');
+//SyncDebug::log(__METHOD__.'() url=' . $_SERVER['REQUEST_URI']);
+//SyncDebug::log(__METHOD__.'() post=' . var_export($_POST, TRUE));
+//SyncDebug::log(__METHOD__.'() req=' . var_export($_REQUEST, TRUE));
 			load_plugin_textdomain('wpsitesynccontent', FALSE, plugin_basename(dirname(__FILE__)) . '/languages');
 			do_action('spectrom_sync_init');
+			self::check_updates();
+		}
+
+		/**
+		 * setup checks for plugin update notifications
+		 */
+		public static function check_updates()
+		{
+			// load updater class
+			if (!class_exists('EDD_SL_Plugin_Updater', FALSE)) {
+				$file = dirname(__FILE__) . '/install/pluginupdater.php';
+				require_once($file);
+			}
+
+			self::$_license = new SyncLicensing();
+			$update_data = self::$_license->get_update_data();
+
+			// setup the updater instance for each add-on
+			foreach ($update_data['extensions'] as $extension) {
+//SyncDebug::log(__METHOD__.'() creating updater instance for ' . $extension['name']);
+				$edd_updater = new EDD_SL_Plugin_Updater($update_data['store_url'], $extension['file'], array(
+					'version'	=> $extension['version'],						// current version number
+					'license'	=> $extension['license'],						// license key
+					'item_name'	=> $extension['name'],							// name of this plugin
+					'author'	=> 'WPSiteSync',								// author of this plugin
+					'url'		=> home_url(),
+				));
+			}
+		}
+
+		/**
+		 * Callback function to filter the filename created in wp_tmpname()
+		 * @param string $filename The filename being created
+		 * @param string $ext The file's extension
+		 * @param string $dir The file's directory
+		 * @param callback $unique_filename_callback
+		 * @return string The file name to use
+		 */
+		public function filter_unique_filename($filename, $ext, $dir, $unique_filename_callback)
+		{
+SyncDebug::log(__METHOD__.'() filename=' . $filename . ' ext=' . $ext . ' dir=' . $dir);
+			// if WP is upgrading a plugin and the filename is too long, shorten it
+			if ($this->_performing_upgrade && (strlen($filename) > 120 && '.tmp' === $ext)) {
+				$filename = md5($filename) . $ext;
+SyncDebug::log(__METHOD__.'() modifying filename=' . $filename);
+			}
+			return $filename;
+		}
+		/**
+		 * Callback for 'upgrader_pre_download' filter called in WP_Upgrader->download_package().
+		 * Used to signal the filter_unique_filename() method to modify the filename if it's too long
+		 * @param boolean $result Result value
+		 * @param string $package The package URL
+		 * @param WP_Upgrader $wp_upgrader The instance of the WP_Upgrader class
+		 * @return boolean The unmodified $result value
+		 */
+		public function filter_upgrader_download($result, $package, $wp_upgrader)
+		{
+SyncDebug::log(__METHOD__.'() package=' . var_export($package, TRUE));
+			// use this filter from WP_Upgrader->download_package() to signal that a download package filename needs to be checked
+			$this->_performing_upgrade = TRUE;
+			return $result;
 		}
 	}
 }

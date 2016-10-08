@@ -131,6 +131,8 @@ SyncDebug::log(__METHOD__.'()');
 		$collate = NULL;
 		if (defined('DB_COLLATE'))
 			$collate = DB_COLLATE;							// if the constant is declared, use it
+		if ('utf8_unicode_ci' === $collate)					// fix for CREATE TABLEs on WPEngine
+			$collate = 'utf8mb4_unicode_ci';
 		if (empty($collate) && !empty($wpdb->collate))		// otherwise allow wpdb class to specify
 			$collate = $wpdb->collate;
 		if (!empty($collate))

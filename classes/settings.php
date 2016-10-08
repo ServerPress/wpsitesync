@@ -395,6 +395,19 @@ class SyncSettings extends SyncInput
 	}
 
 	/**
+	 * Renders a message as part of the settings/form
+	 * @param array $args Arguments used to construct the message
+	 */
+	public function render_message_field($args)
+	{
+		$class = '';
+		if (!empty($args['class']))
+			$class = ' class="' . $args['class'] . '" ';
+		if (!empty($args['description']))
+			echo "<p {$class}>", esc_html($args['description']), '</p>';
+	}
+
+	/**
 	 * Renders the radio buttons used for the control
 	 * @param array $args Arguments used to render the radio buttons
 	 */

@@ -257,6 +257,65 @@ SUCCESS:
 	}
 
 	/**
+	 * Retrieves the add-on's version from the EDD API 
+	 * @param string $slug The slug for the add-on to retrieve version information for
+	 * @param string $name The name of the add-on for version retrieval
+	 * @return string|boolean The version number as a string (allowing for numbers x.x.x) or FALSE if the add-on is not recognized
+	 */
+	public function get_version($slug, $name)
+	{
+//SyncDebug::log(__METHOD__."('{$slug}', '{$name}')");
+		$this->_load_licenses();
+		if (empty(self::$_licenses[$name])) {
+//SyncDebug::log(' - license empty ' . __LINE__);
+			return FALSE;
+		}
+
+		$extensions = SyncExtensionModel::get_extensions(TRUE);
+		if (empty($extensions[$name])) {
+//SyncDebug::log(' - extension empty ' . __LINE__);
+			return FALSE;
+		}
+
+		$api_params = array(
+			'edd_action' => 'get_version',
+			'url' => site_url(),
+			'license' => self::$_licenses[$name],
+			'name' => urlencode($name),
+			'slug' => $slug,
+		);
+//SyncDebug::log(__METHOD__.'() sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
+		$response = wp_remote_get($this->_get_api_url(), array(
+			'timeout' => 15,
+			'sslverify' => FALSE
+		));
+//SyncDebug::log(__METHOD__.'() results=' . var_export($response, TRUE));
+/**
+			'new_version'   => $version,
+			'name'          => $download->post_title,
+			'slug'          => $slug,
+			'url'           => esc_url( add_query_arg( 'changelog', '1', get_permalink( $item_id ) ) ),
+			'last_updated'  => $download->post_modified,
+			'homepage'      => get_permalink( $item_id ),
+			'package'       => $this->get_encoded_download_package_url( $item_id, $license, $url ),
+			'download_link' => $this->get_encoded_download_package_url( $item_id, $license, $url ),
+			'sections'      => serialize(
+				array(
+					'description' => wpautop( strip_tags( $description, '<p><li><ul><ol><strong><a><em><span><br>' ) ),
+					'changelog'   => wpautop( strip_tags( stripslashes( $changelog ), '<p><li><ul><ol><strong><a><em><span><br>' ) ),
+				)
+			),
+ */
+		// check for errors
+		if (is_wp_error($response))
+			return FALSE;
+
+		// decode the response
+		$license_data = json_decode(wp_remote_retrieve_body($response));
+//SyncDebug::log(__METHOD__.'() data=' . var_export($license_data, TRUE));
+	}
+
+	/**
 	 * Deactivates the License Key for the named add-on
 	 * @param string $name The name of the add-on to activate the License Key for
 	 * @return boolean TRUE if the License was successfully deactivated; otherwise FALSE.
@@ -377,5 +436,32 @@ SUCCESS:
 	private function _save_licenses()
 	{
 		update_option(self::OPTION_NAME, self::$_licenses);
+	}
+
+	/**
+	 * Used to retrieve information on the Licensing API and known add-ons
+	 */
+	public function get_update_data()
+	{
+		$ret = array(
+			'store_url' => $this->_get_api_url(),
+			'extensions' => array(),
+		);
+
+		$extensions = apply_filters('spectrom_sync_active_extensions', array(), TRUE);
+		$this->_load_licenses();
+//SyncDebug::log(__METHOD__.'() licenses=' . var_export(self::$_licenses, TRUE));
+//SyncDebug::log(__METHOD__.'() extensions=' . var_export($extensions, TRUE));
+
+		foreach ($extensions as $ext_slug => $extension) {
+			if (isset(self::$_licenses[$ext_slug]))
+				$lic = self::$_licenses[$ext_slug];
+			else
+				$lic = '';
+			$extension['license'] = $lic;
+			$ret['extensions'][] = $extension;
+		}
+//SyncDebug::log(__METHOD__.'() returning data: ' . var_export($ret, TRUE));
+		return $ret;
 	}
 }

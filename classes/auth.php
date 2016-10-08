@@ -150,7 +150,9 @@ class SyncAuth extends SyncInput
 		$iv_size = mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
 		$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
 		$cleartext = mcrypt_decrypt(MCRYPT_BLOWFISH, $key, $decoded, MCRYPT_MODE_ECB, $iv);
-//SyncDebug::log('  cleartext: ' . $cleartext);
+//SyncDebug::log('  cleartext: ' . var_export($cleartext, TRUE));
+		$cleartext = trim($cleartext, "\0");
+//SyncDebug::log('  cleartext: ' . var_export($cleartext, TRUE));
 		return $cleartext;
 	}
 

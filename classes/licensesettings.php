@@ -50,7 +50,7 @@ $section_id = 'sync_section';
 			add_settings_field(
 				$field_id,									// field id
 				sprintf(__('%s License Key:', 'wpsitesynccontent'), $extension['name']),// title
-				array(&$this, 'render_license_field'),			// callback
+				array($this, 'render_license_field'),			// callback
 				SyncSettings::SETTINGS_PAGE,					// page
 				$section_id,									// section id
 				array(											// args
@@ -62,6 +62,18 @@ $section_id = 'sync_section';
 				)
 			);
 		}
+
+		add_settings_field(
+			'license_msg',									// field id
+			'',												// title
+			array(SyncSettings::get_instance(), 'render_message_field'),	// callback
+			SyncSettings::SETTINGS_PAGE,					// page
+			$section_id,									// section id
+			array(
+				'name' => 'license_msg',
+				'description' => sprintf(__('License keys are required to activate add-on\'s functionality and to be notified of updates.', 'wpsitesynccontent')),
+			)
+		);
 SyncDebug::log(__METHOD__.'() - returning');
 	}
 
@@ -89,17 +101,19 @@ SyncDebug::log(__METHOD__.'() - returning');
 		echo '<span id="sync-license-status-', $args['name'], '" class="sync-license-status">',
 			__('Status: ', 'wpsitesynccontent'), '<span>', $args['status'], '</span></span>';
 
-		echo '<button id="sync-license-act-', $args['name'], '" type="button" class="button sync-license sync-license-activate" data="', $args['name'], '" ';
-		echo ' onclick="sync_settings.activate(this, \'', $args['name'] , '\'); return false;" >';
-		_e('Activate');
-		echo '</button>';
+		if (!empty($args['value']) && 32 === strlen($args['value'])) {
+			echo '<button id="sync-license-act-', $args['name'], '" type="button" class="button sync-license sync-license-activate" data="', $args['name'], '" ';
+			echo ' onclick="sync_settings.activate(this, \'', $args['name'] , '\'); return false;" >';
+			_e('Activate');
+			echo '</button>';
 
-		echo '<button id="sync-license-deact-', $args['name'], '" type="button" class="button sync-license sync-license-deactivate" data="', $args['name'], '" ';
-		echo ' onclick="sync_settings.deactivate(this, \'', $args['name'] , '\'); return false;" >';
-		_e('Dectivate');
-		echo '</button>';
+			echo '<button id="sync-license-deact-', $args['name'], '" type="button" class="button sync-license sync-license-deactivate" data="', $args['name'], '" ';
+			echo ' onclick="sync_settings.deactivate(this, \'', $args['name'] , '\'); return false;" >';
+			_e('Dectivate');
+			echo '</button>';
 
-		echo '<div id="sync-license-msg-', $args['name'], '" style="display:none" class="sync-license-msg"></div>';
+			echo '<div id="sync-license-msg-', $args['name'], '" style="display:none" class="sync-license-msg"></div>';
+		}
 
 		if (!empty($args['description']))
 			echo '<p><em>', esc_html($args['description']), '</em></p>';

@@ -69,8 +69,10 @@ SyncDebug::log(' sync_nonce=' . $this->get('_spectrom_sync_nonce') . '  site_key
 //			$response->error_code(SyncApiRequest::ERROR_SESSION_EXPIRED);
 			$response->send();		// calls die()
 		}
+
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking auth argument args=' . var_export($args, TRUE));
 		if (isset($args['auth']) && 0 === $args['auth']) {
-SyncDebug::log(__METHOD__.'() skipping authentication as per args');
+//SyncDebug::log(__METHOD__.'() skipping authentication as per args');
 			$this->_auth = 0;
 		} else {
 			if ('auth' !== $action) {
@@ -78,11 +80,13 @@ SyncDebug::log(__METHOD__.'() checking credentials');
 				$auth = new SyncAuth();
 				$user = $auth->check_credentials($response);
 				// check to see if credentials passed
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' auth failed ' . var_export($user, TRUE));
 				if ($response->has_errors())
 					$response->send();
 			}
 		}
 
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' check action: ' . $action);
 		switch ($action) {
 		case '':
 			$response->error_code(SyncApiRequest::ERROR_UNRECOGNIZED_REQUEST);
@@ -282,9 +286,8 @@ SyncDebug::log('- found post: ' . var_export($post, TRUE));
 
 
 		// do not allow the push if it's not a recognized post type
-		if (NULL !== $post &&
-			(!in_array($post->post_type, apply_filters('spectrom_sync_allowed_post_types', array('post', 'page'))))) {
-SyncDebug::log(' - checking post type: ' . $post->post_type);
+		if (!in_array($post_data['post_type']/*$post->post_type*/, apply_filters('spectrom_sync_allowed_post_types', array('post', 'page')))) {
+SyncDebug::log(' - checking post type: ' . $post_data['post_type']/*$post->post_type*/);
 			$response->error_code(SyncApiRequest::ERROR_INVALID_POST_TYPE);
 			return;
 		}
@@ -300,12 +303,10 @@ SyncDebug::log(__METHOD__.'() looking up parent post #' . $post_data['post_paren
 				$response->error_code(SyncApiRequest::ERROR_UNRESOLVED_PARENT);
 				return;
 			}
-			// fixup the parent post id with the Target's id value
+			// fixup the Source's parent post id with the Target's id value
 SyncDebug::log(__METHOD__.'() setting parent post to #' . $parent_post->target_content_id);
 			$post_data['post_parent'] = intval($parent_post->target_content_id);
 		}
-
-		// TODO: also check the post_type in the $post_data array
 
 		// change references to source URL to target URL
 		$post_data['post_content'] = str_replace($this->source, site_url(), $post_data['post_content']);
@@ -320,7 +321,10 @@ SyncDebug::log(' ' . __LINE__ . ' - check permission for updating post id#' . $p
 			if ($this->has_permission('edit_post', $post->ID)) {
 //SyncDebug::log(' - has permission');
 				$target_post_id = $post_data['ID'] = $post->ID;
-				wp_update_post($post_data); // ;here;
+				$res = wp_update_post($post_data, TRUE); // ;here;
+				if (is_wp_error($res)) {
+					$response->error_code(SyncApiRequest::ERROR_CONTENT_UPDATE_FAILED, $res->get_error_message());
+				}
 			} else {
 				$response->error_code(SyncApiRequest::ERROR_NO_PERMISSION);
 				$response->send();

@@ -24,7 +24,7 @@ WPSiteSync for Content helps Designers, Developers and Content Creators Synchron
 
 The <em>WPSiteSync for Content</em> plugin was specifically designed to ease your workflow when creating content between development, staging and live servers. The tool removes the need to migrate an entire database, potentially overwriting new content on the live site, just to update a few pages or posts. Now you can easily move your content from one install to another with the click of a button, reducing errors and saving you time.
 
-WPSiteSync for Content is fully functional in any WordPress environment. We recommend using DesktopServer, but it is not a requirement
+WPSiteSync for Content is fully functional in any WordPress environment.  We recommend using DesktopServer, but it is not a requirement.
 
 
 <strong>This benefits the Development Workflow in more ways than one:</strong>

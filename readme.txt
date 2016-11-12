@@ -110,6 +110,9 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.2.2 - Nov 11, 2016 =
+* Update readme contents.
+
 = 1.2.2 - Oct 7, 2016 =
 * Fix: Add missing file.
 

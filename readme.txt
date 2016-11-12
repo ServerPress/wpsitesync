@@ -14,9 +14,9 @@ Provides features for synchronizing content between two WordPress sites.
 
 WPSiteSync for Content helps Designers, Developers and Content Creators Synchronize Blog Post and Page Content between WordPress installs, in Real Time, with a simple Click of a button!
 
-* Local -&gt; Staging
-* Staging -&gt; Live
-* Local -&gt; Staging -&gt; Live
+* Local -> Staging
+* Staging -> Live
+* Local -> Staging -> Live
 
 [youtube https://www.youtube.com/watch?v=KpeiTMbdj_Y]
 
@@ -24,7 +24,7 @@ WPSiteSync for Content helps Designers, Developers and Content Creators Synchron
 
 The <em>WPSiteSync for Content</em> plugin was specifically designed to ease your workflow when creating content between development, staging and live servers. The tool removes the need to migrate an entire database, potentially overwriting new content on the live site, just to update a few pages or posts. Now you can easily move your content from one install to another with the click of a button, reducing errors and saving you time.
 
-WPSiteSync for Content is fully functional in any WordPress environment.  We recommend using DesktopServer, but it is not a requirement.
+WPSiteSync for Content is fully functional in any WordPress environment. We recommend using DesktopServer, but it is not a requirement.
 
 
 <strong>This benefits the Development Workflow in more ways than one:</strong>
@@ -66,7 +66,7 @@ WPSiteSync for Content is fully functional in any WordPress environment.  We rec
 
 Installation instructions: To install, do the following:
 
-1. From the dashboard of your site, navigate to Plugins --&gt; Add New.
+1. From the dashboard of your site, navigate to Plugins --> Add New.
 2. Select the "Upload Plugin" button.
 3. Click on the "Choose File" button to upload your file.
 3. When the Open dialog appears select the wpsitesynccontent.zip file from your desktop.
@@ -80,7 +80,7 @@ or, you can upload the files directly to your server.
 
 You will need to Install and Activate the WPSiteSync for Content plugin on your development website (the Source) as well as the Target web site (where the Content is being moved to).
 
-Once activated, you can use the Configuration page found at Settings -&gt; WPSiteSync, on the Source website to set the URL of the Target and the login credentials to use when sending data. This will allow the WPSiteSync for Content plugin to communicate with the Target website, authenticate, and then move the data between the websites. You do not need to Configure WPSiteSync for Content on the Target website as this will only be receiving Synchronization requests from the Source site.
+Once activated, you can use the Configuration page found at Settings -> WPSiteSync, on the Source website to set the URL of the Target and the login credentials to use when sending data. This will allow the WPSiteSync for Content plugin to communicate with the Target website, authenticate, and then move the data between the websites. You do not need to Configure WPSiteSync for Content on the Target website as this will only be receiving Synchronization requests from the Source site.
 
 == Frequently Asked Questions ==
 

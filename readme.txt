@@ -14,22 +14,22 @@ Provides features for synchronizing content between two WordPress sites.
 
 WPSiteSync for Content helps Designers, Developers and Content Creators Synchronize Blog Post and Page Content between WordPress installs, in Real Time, with a simple Click of a button!
 
-* Local -> Staging
-* Staging -> Live
-* Local -> Staging -> Live
+* Local -&gt; Staging
+* Staging -&gt; Live
+* Local -&gt; Staging -&gt; Live
 
 [youtube https://www.youtube.com/watch?v=KpeiTMbdj_Y]
 
 ><strong>Support Details:</strong> We are happy to provide support and help troubleshoot issues. Visit our Contact page at <a href="http://serverpress.com/contact/" target="_blank">http://serverpress.com/contact/</a>. Users should know however, that we check the WordPress.org support forums once a week on Wednesdays from 6pm to 8pm PST (UTC -8).
 
-The <em>WPSiteSync for Content</em> plugin was specifically designed to ease your workflow when creating content between development, staging and live servers. The tool removes the need to migrate an entire database, potentially overwriting new content on the live site, just to update a few pages or posts. Now you can easily move your content from one install to another with the click of a button, reducing errors and saving you time. 
+The <em>WPSiteSync for Content</em> plugin was specifically designed to ease your workflow when creating content between development, staging and live servers. The tool removes the need to migrate an entire database, potentially overwriting new content on the live site, just to update a few pages or posts. Now you can easily move your content from one install to another with the click of a button, reducing errors and saving you time.
 
-WPSiteSync for Content is fully functional in any WordPress environment. We recommend using DesktopServer, but it is not a requirement.
+While WPSiteSync for Content is optimized to work with local development tools such as DesktopServer, it is designed to be fully functional in any WordPress environment.
 
 
 <strong>This benefits the Development Workflow in more ways than one:</strong>
 
-* Real-Time LIVE Sync eliminates data loss such as Comments.
+* Real-Time Sync eliminates data loss such as Comments.
 * Saving development time with No files to backup, download and upload.
 * Limit mistakes copying and pasting.
 * Client Approval on Staging site is now Faster and Easier than ever.
@@ -46,16 +46,12 @@ WPSiteSync for Content is fully functional in any WordPress environment. We reco
 * Taxonomy such as Tags and Categories
 * And much much more
 
-<strong>In our Early Adopter Trailblazer Program, you will also Receive:</strong>
+<strong>In our Early Adopter Add-On Program, you will also Receive:</strong>
 
 * WPSiteSync for Bi-Directional Pull (Syncing from Live to Staging)
 * WPSiteSync for Custom Post Types
 * WPSiteSync for Author Attribution
-* WPSiteSync for Comments
-* WPSiteSync for BulkActions
-* WPSiteSync for BeaverBuilder
-* WPSiteSync for Genesis Settings
-* WPSiteSync for WooCommerce Products
+* WPSiteSync for Comments (coming soon!)
 * FULL access to ALL future Premium Extensions
 
 <strong>For more perks such as Early Access</strong> and <strong>Exclusive Preview</strong> of upcoming Features, please visit us at <a href="https://wpsitesync.com">WPSiteSync.com</a>
@@ -66,7 +62,7 @@ WPSiteSync for Content is fully functional in any WordPress environment. We reco
 
 Installation instructions: To install, do the following:
 
-1. From the dashboard of your site, navigate to Plugins --> Add New.
+1. From the dashboard of your site, navigate to Plugins --&gt; Add New.
 2. Select the "Upload Plugin" button.
 3. Click on the "Choose File" button to upload your file.
 3. When the Open dialog appears select the wpsitesynccontent.zip file from your desktop.
@@ -80,7 +76,7 @@ or, you can upload the files directly to your server.
 
 You will need to Install and Activate the WPSiteSync for Content plugin on your development website (the Source) as well as the Target web site (where the Content is being moved to).
 
-Once activated, you can use the Configuration page found at Settings -> WPSiteSync, on the Source website to set the URL of the Target and the login credentials to use when sending data. This will allow the WPSiteSync for Content plugin to communicate with the Target website, authenticate, and then move the data between the websites. You do not need to Configure WPSiteSync for Content on the Target website as this will only be receiving Synchronization requests from the Source site.
+Once activated, you can use the Configuration page found at Settings -&gt; WPSiteSync, on the Source website to set the URL of the Target and the login credentials to use when sending data. This will allow the WPSiteSync for Content plugin to communicate with the Target website, authenticate, and then move the data between the websites. You do not need to Configure WPSiteSync for Content on the Target website as this will only be receiving Synchronization requests from the Source site.
 
 == Frequently Asked Questions ==
 
@@ -110,19 +106,6 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
-= 1.2.2 - Oct 7, 2016 =
-* Fix: Add missing file.
-
-= 1.2.1 - Oct 7, 2016 =
-* Fix: Update collation on created table for some hosts.
-* Enhancement: Add checks for updates to add-ons via WPSiteSync.com site.
-* Fix: Sanitize password hash for encryption algorithms. (thanks Jonah W.)
-* Enhancement: Specify timeout for API calls.
-* Enhancement: Remove any error output interfering with JSON data in API calls.
-* Enhancement: Improve error handling/recovery on API calls.
-* Fix: Update checks for allowed post types. (thanks Cathy E.)
-* Enhancement: Improve UX for License Keys.
-
 = 1.2 - Sep 7, 2016 =
 * Fix: Changes to resolve authentication issues. (thanks to Craig S., Cathy E., Josh C. and Jason H.)
 * Enhancement: Some optimizations and code cleanup.

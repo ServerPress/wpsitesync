@@ -535,7 +535,12 @@ class SyncSettings extends SyncInput
 					$out['target_site_key'] = $res->response->data->site_key;
 //SyncDebug::log(__METHOD__.'() got token: ' . $res->response->data->token);
 				} else {
-//SyncDebug::log(__METHOD__.'() bad password response from Target');
+					// authentication failure response from Target- report this to user
+//SyncDebug::log(__METHOD__.'() authentication response from Target');
+					$msg = SyncApiRequest::error_code_to_string($res->error_code);
+					add_settings_error('sync_options_group', 'auth-error',
+						sprintf(__('Error authenticating user on Target: %s', 'wpsitesynccontent'),
+							$msg));
 				}
 			}
 			// remove ['password'] element from $out since we now have a token
@@ -585,7 +590,7 @@ class SyncSettings extends SyncInput
 			'<p>' . sprintf(__('Visit the <a href="%s" target="_blank">documentation</a> on the WPSiteSync for Content website.', 'wpsitesynccontent'),
 						esc_url('http://wpsitesync.com/knowledgebase/use-wpsitesync-content/')) . '</p>' .
 			'<p>' . sprintf(
-						__('<a href="%s" target="_blank">Post an issue</a> on <a href="%s" target="_blank">GitHub</a>.', 'wpsitesynccontent'),
+						__('<a href="%1$s" target="_blank">Post an issue</a> on <a href="%2$s" target="_blank">GitHub</a>.', 'wpsitesynccontent'),
 						esc_url('https://github.com/ServerPress/wpsitesync/issues'),
 						esc_url('https://github.com/ServerPress/wpsitesync')) .
 			'</p>'

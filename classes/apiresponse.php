@@ -16,6 +16,7 @@ class SyncApiResponse implements SyncApiHeaders
 	// TODO: remove $notices
 	public $notices = array();					// list of notices @deprecated
 	public $notice_codes = array();				// list of notice codes
+	public $result_codes = array();				// list of result codes
 	public $success = 0;						// assume no success
 	// TODO: remove $form
 	public $form = NULL;						// form id
@@ -71,6 +72,7 @@ if ('error' === $sName) SyncDebug::log(__METHOD__.'() called with data value "er
 	{
 		$this->error_code = $response->error_code;
 		$this->notice_codes = $response->notice_codes;
+		$this->result_codes = $response->result_codes;
 		$this->notices = $response->notices;
 		foreach ($response->data as $key => $data) {
 			$this->data[$key] = $data;
@@ -156,6 +158,11 @@ if ('error' === $sName) SyncDebug::log(__METHOD__.'() called with data value "er
 	public function notice_code($code)
 	{
 		$this->notice_codes[] = $code;
+	}
+
+	public function result_code($code)
+	{
+		$this->result_codes[] = $code;
 	}
 
 	// adds a validation message to the 'validation.' element
@@ -248,6 +255,11 @@ if ('error' === $sName) SyncDebug::log(__METHOD__.'() called with data value "er
 			$aOutput['notices'] = array();
 			foreach ($this->notice_codes as $code)
 				$aOutput['notices'][] = SyncApiRequest::notice_code_to_string($code);
+		}
+
+		// add result codes
+		if (count($this->result_codes)) {
+			$aOutput['result_codes'] = $this->result_codes;
 		}
 
 		if (0 !== $this->error_code || (count($this->errors) + count($this->validation) > 0))

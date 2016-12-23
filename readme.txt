@@ -3,7 +3,7 @@ Contributors: serverpress, spectromtech, davejesch, Steveorevo
 Donate link: http://wpsitesync.com
 Tags: attachments, content, content sync, data migration, desktopserver, export, import, migrate content, moving data, staging, synchronization, taxonomies
 Requires at least: 3.5
-Tested up to: 4.6
+Tested up to: 4.7
 Stable tag: trunk
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -110,8 +110,19 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
-= 1.2.2 - Nov 11, 2016 =
-* Update readme contents.
+= 1.3 - Dec 22, 2016 =
+* fix: fix author assigned on revisions when Pushing Content to Target
+* fix: add/update text domain used on some translation strings (Thanks Pedro M.)
+* fix: change to handling of featured image data (Thanks Josh C.)
+* fix: handle attachments for WP installs in subdirectories (Thanks Rudi L.)
+* fix: change to permissions checking that sometimes resulted in the inability to push Content (Thanks Rudi L.)
+* fix: update 'unique_filename_callback' filter to work with WP 4.7
+* enhancement: add features for WPSiteSync for Beaver Builder
+* enhancement: display better error messages if authentication process fails on Target (thanks Chris F.)
+* enhancement: check user capabilities when authenticating on Target
+* enhancement: return error if auth token cannot be saved on Target site 
+* enhancement: optimizations to licensing system (Thanks Dominick K.)
+* enhancement: better handling of serialized postmeta data
 
 = 1.2.2 - Oct 7, 2016 =
 * Fix: Add missing file.

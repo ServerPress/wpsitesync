@@ -69,6 +69,16 @@ class SyncAuth extends SyncInput
 			// return error message
 			$resp->error_code(SyncApiRequest::ERROR_BAD_CREDENTIALS, $user_signon->get_error_message());
 		} else {
+			// we have a valid user - check additional requirements
+
+			// check capabilities
+			if (!$user_signon->has_cap('edit_posts')) {
+SyncDebug::log(__METHOD__.'() does not have capability: edit_posts');
+				$resp->error_code(SyncApiRequest::ERROR_NO_PERMISSION);
+				return;
+			}
+
+			// check to see if a token exists
 			if (NULL === $token) {
 				// we've just authenticated for the first time, create a token to return to Source site
 				$data = array(
@@ -77,6 +87,10 @@ class SyncAuth extends SyncInput
 					'auth_name' => $username,
 				);
 				$token = $source_model->add_source($data);
+				if (FALSE === $token) {
+					$resp->error_code(SyncApiRequest::ERROR_CANNOT_WRITE_TOKEN);
+					return;
+				}
 				$resp->set('token', $token);				// return the token to the caller
 			}
 			// set cookies and nonce here
@@ -89,6 +103,7 @@ class SyncAuth extends SyncInput
 			// include the site_key so the Source site can track what site the post is associated with
 			$resp->set('site_key', SyncOptions::get('site_key'));
 
+			// TODO: add API request type (auth, push, etc) to SyncApiResponse so callbacks know context
 			$resp = apply_filters('spectrom_sync_auth_result', $resp);
 //SyncDebug::log('Generated nonce - `' . $this->post('site_key') . ' = ' . $access_nonce . '`');
 //SyncDebug::log('Generated auth cookie - `' . $auth_cookie . '`');

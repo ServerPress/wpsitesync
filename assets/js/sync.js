@@ -20,6 +20,7 @@ function WPSiteSyncContent()
 	this.disable = false;
 	this.post_id = null;
 	this.original_value = '';
+	this.nonce = jQuery('#_sync_nonce').val();
 }
 
 
@@ -132,6 +133,71 @@ WPSiteSyncContent.prototype.force_refresh = function()
 {
 	jQuery(window).trigger('resize');
 	jQuery('#sync-message').parent().hide().show(0);
+};
+
+/**
+ * Perfrom WPSiteSync API call
+ * @param {string} op The name of the API to call
+ * @param {int} post_id The post ID for the API call or null if not applicable
+ * @returns {undefined}
+ */
+WPSiteSyncContent.prototype.api = function(op, post_id, msg, msg_success)
+{
+console.log('wpsitesync.api() performing "' + op + '" api request... ' + msg);
+	// Do nothing when in a disabled state
+	if (this.disable || !this.inited)
+		return;
+
+	// set the message while API is running
+	this.set_message(msg, true);
+
+	this.post_id = post_id;
+	var data = {
+		action: 'spectrom_sync',
+		operation: op,
+		post_id: post_id,
+		_sync_nonce:
+		this.nonce
+	};
+
+	var push_xhr = {
+		type: 'post',
+		async: true, // false,
+		data: data,
+		url: ajaxurl,
+		success: function(response) {
+//console.log('push() success response:');
+//console.log(response);
+			wpsitesynccontent.clear_message();
+			if (response.success) {
+//				jQuery('#sync-message').text(jQuery('#sync-success-msg').text());
+				wpsitesynccontent.set_message(msg_success, false, true);
+				if ('undefined' !== typeof(response.notice_codes) && response.notice_codes.length > 0) {
+					for (var idx = 0; idx < response.notice_codes.length; idx++) {
+						wpsitesynccontent.add_message(response.notices[idx]);
+					}
+				}
+			} else {
+				if ('undefined' !== typeof(response.data.message))
+//					jQuery('#sync-message').text(response.data.message);
+					wpsitesynccontent.set_message(response.data.message, false, true);
+			}
+		},
+		error: function(response) {
+//console.log('push() failure response:');
+//console.log(response);
+			var msg = '';
+			if ('undefined' !== typeof(response.error_message))
+				wpsitesynccontent.set_message('<span class="error">' + response.error_message + '</span>', false, true);
+//			jQuery('#sync-content-anim').hide();
+		}
+	};
+
+	// Allow other plugins to alter the ajax request
+	jQuery(document).trigger('sync_api_call', [op, push_xhr]);
+//console.log('push() calling jQuery.ajax');
+	jQuery.ajax(push_xhr);
+//console.log('push() returned from ajax call');
 };
 
 /**

@@ -31,6 +31,7 @@ class SyncApiRequest implements SyncApiHeaders
 	const ERROR_INVALID_IMG_TYPE = 24;
 	const ERROR_POST_NOT_FOUND = 25;
 	const ERROR_CONTENT_UPDATE_FAILED = 26;
+	const ERROR_CANNOT_WRITE_TOKEN = 27;
 
 	const NOTICE_FILE_EXISTS = 1;
 	const NOTICE_CONTENT_SYNCD = 2;
@@ -231,7 +232,10 @@ SyncDebug::log(__METHOD__.'() saving auth token');
 								'auth_name' => $data['username'],
 								'token' => $response->response->data->token,
 							);
-							$sources_model->add_source($source);
+							$added = $sources_model->add_source($source);
+							if (FALSE === $added) {
+								$response->error_code(SyncApiRequest::ERROR_CANNOT_WRITE_TOKEN);
+							}
 						}
 						break;
 					case 'push':
@@ -261,6 +265,7 @@ else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error code=' . $response->ge
 			}
 		}
 
+		// TODO: don't run this if there was an error in the main wp_remote_post() call
 		$this->_process_queue($remote_args, $response);
 
 		// API request successful. Return results to caller.
@@ -559,6 +564,8 @@ SyncDebug::log(__METHOD__.'() sync data: ' . var_export($sync_data, TRUE));
 			$data['taxonomies'] = $post_data['taxonomies'];
 		if (isset($post_data['sticky']))
 			$data['sticky'] = $post_data['sticky'];
+		if (isset($post_data['thumbnail']))
+			$data['thumbnail'] = $post_data['thumbnail'];
 
 		// parse images from source only
 		$res = $this->_parse_media($post_id, $post_data['post_data']['post_content']);
@@ -665,6 +672,10 @@ SyncDebug::log(__METHOD__.'() id #' . $post_id);
 		// TODO: add try..catch
 		// TODO: can we use get_media_embedded_in_content()?
 		$xml = new DOMDocument();
+		// TODO: this is throwing errors on BB content:
+		// PHP Warning:  DOMDocument::loadHTML(): Tag svg invalid in Entity, line: 9 in wpsitesynccontent/classes/apirequest.php on line 675
+		// PHP Warning:  DOMDocument::loadHTML(): Tag circle invalid in Entity, line: 10 in wpsitesynccontent/classes/apirequest.php on line 675
+		// PHP Warning:  DOMDocument::loadHTML(): Tag circle invalid in Entity, line: 11 in wpsitesynccontent/classes/apirequest.php on line 675
 		$xml->loadHTML($content);
 
 		// set up some things before content parsing
@@ -707,7 +718,8 @@ SyncDebug::log(__METHOD__.'() <img src="' . $src_attr . '" class="' . $class_att
 					$img_post = get_post($img_id, OBJECT);
 					if (NULL !== $img_post) {
 						$img_file = $img_post->guid;
-						if ($this->_send_media($img_file, $post_id, $post_thumbnail_id, $img_id))
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' guid=' . $img_file);
+						if ($this->send_media($img_file, $post_id, $post_thumbnail_id, $img_id))
 							$src_attr = NULL;
 					}
 					break;
@@ -725,7 +737,7 @@ SyncDebug::log(__METHOD__.'() <img src="' . $src_attr . '" class="' . $class_att
 						break;
 					}
 				}
-				if ($this->_send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
+				if ($this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
 					return FALSE;
 			}
 		}
@@ -752,7 +764,7 @@ SyncDebug::log(__METHOD__.'() - found pdf attachment id ' . $attach_id);
 						break;
 					}
 				}
-				$this->_send_media($href_attr, $post_id, $post_thumbnail_id, $attach_id);
+				$this->send_media($href_attr, $post_id, $post_thumbnail_id, $attach_id);
 			} else {
 //SyncDebug::log(' - no attachment to send');
 			}
@@ -772,7 +784,7 @@ SyncDebug::log('  ABSPATH=' . ABSPATH);
 SyncDebug::log('  DOCROOT=' . $_SERVER['DOCUMENT_ROOT']);
 				$path = str_replace(trailingslashit(site_url()), ABSPATH, $src);
 				if (!in_array($path, $this->_sent_images))
-					$this->_upload_media($post_id, $path, NULL /*$this->host*/, TRUE, $post_thumbnail_id);
+					$this->upload_media($post_id, $path, NULL /*$this->host*/, TRUE, $post_thumbnail_id);
 				else {
 SyncDebug::log(__METHOD__.'() image ' . $path . ' has already been sent');	
 				}
@@ -790,7 +802,7 @@ SyncDebug::log(__METHOD__.'() image ' . $path . ' has already been sent');
 	 * @param int $attach_id The post ID of the attachment being sent
 	 * @return boolean TRUE on successful add to API queue; otherwise FALSE
 	 */
-	private function _send_media($url, $post_id, $thumbnail_id, $attach_id)
+	public function send_media($url, $post_id, $thumbnail_id, $attach_id)
 	{
 SyncDebug::log(__METHOD__."('{$url}', {$post_id}, {$thumbnail_id})");
 		if (in_array($url, $this->_sent_images)) {
@@ -800,12 +812,17 @@ SyncDebug::log(__METHOD__.'() already sent this image');
 		$this->_sent_images[] = $url;
 
 		$src_parts = parse_url($url);
-		$path = substr($src_parts['path'], 1); // remove first "/"
+//		$path = substr($src_parts['path'], 1); // remove first "/"
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' path=' . $path);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' siteurl=' . site_url());
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ABSPATH=' . ABSPATH);
+		$path = str_replace(trailingslashit(site_url()), ABSPATH, $url);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' new path=' . $path);
 
 		// return data array
-SyncDebug::log(__METHOD__.'() sending image ' . ABSPATH . $path);
+SyncDebug::log(__METHOD__.'() sending image ' . $path);
 		if ($src_parts['host'] === $this->_source_domain &&
-			is_wp_error($this->_upload_media($post_id, ABSPATH . $path, NULL, $thumbnail_id == $post_id, $attach_id)))
+			is_wp_error($this->upload_media($post_id, $path, NULL, $thumbnail_id == $post_id, $attach_id)))
 			return FALSE;
 
 		return TRUE;
@@ -819,14 +836,14 @@ SyncDebug::log(__METHOD__.'() sending image ' . ABSPATH . $path);
 	 * @param boolean $featured Flag if the image/media is the featured image
 	 * @param int $attach_id The post ID of the attachment being uploaded
 	 */
-	private function _upload_media($post_id, $file_path, $target, $featured = FALSE, $attach_id = 0)
+	public function upload_media($post_id, $file_path, $target, $featured = FALSE, $attach_id = 0)
 	// TODO: remove $target parameter
 	{
 SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' featured=' . ($featured ? 'TRUE' : 'FALSE') . ' attach_id=' . $attach_id, TRUE);
 		$attach_post = get_post($attach_id, OBJECT);
 		$attach_alt = get_post_meta($attach_id, '_wp_attachment_image_alt', TRUE);
 		$post_fields = array (
-			'name' => 'value',
+//			'name' => 'value',
 			'post_id' => $post_id,
 			'featured' => intval($featured),
 			'boundary' => wp_generate_password(24),		// TODO: remove and generate when formatting POST content in _media()
@@ -841,6 +858,16 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 			'attach_name' => (NULL !== $attach_post) ? $attach_post->post_name : '',
 			'attach_alt' => (NULL !== $attach_post) ? $attach_alt : '',
 		);
+//$post_fields['content-len'] = strlen($post_fields['contents']);
+//$post_fields['content-type'] = gettype($post_fields['contents']);
+//$post_fields['img-name'] = $file_path;
+//$d = file_exists($file_path);
+//$post_fields['img-exists'] = var_export($d, TRUE);
+//$post_fields['img-time'] = date('Y-m-d H:i:s', filemtime($file_path));
+//$post_fields['img-size'] = filesize($file_path);
+
+//SyncDebug::log(__METHOD__.'() post data=' . var_export($post_fields, TRUE));
+
 		// add file upload operation to the API queue
 		$this->_add_queue('upload_media', $post_fields);
 	}
@@ -856,7 +883,7 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 		$error = '';
 		switch ($code) {
 		case self::ERROR_CANNOT_CONNECT:		$error = __('Unable to connect to Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_UNRECOGNIZED_REQUEST:	$error = __('The requested action is not recognized', 'wpsitesynccontent'); break;
+		case self::ERROR_UNRECOGNIZED_REQUEST:	$error = __('The requested action is not recognized. Is plugin activated on Target?', 'wpsitesynccontent'); break;
 		case self::ERROR_NOT_INSTALLED:			$error = __('WPSiteSync for Content is not installed and activated on Target site.', 'wpsitesynccontent'); break;
 		case self::ERROR_BAD_CREDENTIALS:		$error = __('Unable to authenticate on Target site.', 'wpsitesynccontent'); break;
 		case self::ERROR_SESSION_EXPIRED:		$error = __('User session has expired.', 'wpsitesynccontent'); break;
@@ -877,10 +904,11 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 		case self::ERROR_BAD_NONCE:				$error = __('Unable to validate AJAX request.', 'wpsitesynccontent'); break;
 		case self::ERROR_UNRESOLVED_PARENT:		$error = __('Content has a Parent Page that has not been Sync\'d.', 'wpsitesynccontent'); break;
 		case self::ERROR_NO_AUTH_TOKEN:			$error = __('Unable to authentication with Target site. Please re-enter credentials for this site.', 'wpsitesynccontent'); break;
-		case self::ERROR_NO_PERMISSION:			$error = __('You do not have permission to do this. Check configured user on Target.', 'wpsitesynccontent'); break;
+		case self::ERROR_NO_PERMISSION:			$error = __('User does not have permission to perform Sync. Check configured user on Target.', 'wpsitesynccontent'); break;
 		case self::ERROR_INVALID_IMG_TYPE:		$error = __('The image uploaded is not a valid image type.', 'wpsitesynccontent'); break;
 		case self::ERROR_POST_NOT_FOUND:		$error = __('Requested post cannot be found.', 'wpsitesynccontent'); break;
 		case self::ERROR_CONTENT_UPDATE_FAILED:	$error = __('Content update on Target failed.', 'wpsitesynccontent'); break;
+		case self::ERROR_CANNOT_WRITE_TOKEN:	$error = __('Cannot write authentication token.', 'wpsitesynccontent'); break;
 
 		default:
 			$error = apply_filters('spectrom_sync_error_code_to_text', sprintf(__('Unrecognized error: %d', 'wpsitesynccontent'), $code), $code);

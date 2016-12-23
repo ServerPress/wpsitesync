@@ -9,7 +9,7 @@ class SyncLicensing
 	const OPTION_NAME = 'spectrom_sync_licensing';
 
 	const LICENSE_API_URL = 'https://wpsitesync.com';
-	const LICENSE_TTL = 10800;
+	const LICENSE_TTL = 10800;						# 28800 = 8hrs | 10800 = 3hrs
 
 	const STATE_UNKNOWN = '0';
 	const STATE_ACTIVE = '1';
@@ -18,6 +18,16 @@ class SyncLicensing
 	const STATE_ERROR = '9';
 
 	private static $_licenses = NULL;
+	private static $_status = array();
+	private static $_dirty = FALSE;
+	private static $_instance = NULL;
+
+	public function __construct()
+	{
+		if (NULL === self::$_instance)
+			self::$_instance = $this;
+		return self::$_instance;
+	}
 
 	/**
 	 * Returns the URL to use for Licensing API calls
@@ -63,26 +73,49 @@ class SyncLicensing
 	 */
 	public function check_license($slug, $key, $name)
 	{
+//SyncDebug::log(__METHOD__."('{$slug}', '{$key}', '{$name}')");
 		$this->_load_licenses();
+
+		// check cached value
+		if (isset(self::$_status[$slug])) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' cached[' . $slug . ']=' . (self::$_status[$slug] ? 'TRUE' : 'FALSE'));
+			return self::$_status[$slug];
+		}
+
+		// check for presence of licensing information
 		if (!isset(self::$_licenses[$slug]) || empty(self::$_licenses[$slug]) ||
-			!isset(self::$_licenses[$slug . '_st']) || empty(self::$_licenses[$slug . '_st']))
+			!isset(self::$_licenses[$slug . '_st']) || empty(self::$_licenses[$slug . '_st'])) {
+			// incomplete information, return failure
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
 			return FALSE;
+		}
 
 //		$extensions = SyncExtensionModel::get_extensions();
 //		if (!isset($extensions[$slug]))
 //			return FALSE;
 
-		$call = TRUE;
-		if (isset(self::$_licenses[$slug . '_tr']) && self::$_licenses[$slug . '_tr'] < time())
+		$call = FALSE;
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] check call status=TRUE');
+		if (isset(self::$_licenses[$slug . '_tr']) && self::$_licenses[$slug . '_tr'] < time()) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] not expired');
 			$call = FALSE;
-		if (!isset(self::$_licenses[$slug . '_vl']) || self::$_licenses[$slug . '_vl'] !== $key)
+		}
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] call=' . ($call ? 'TRUE' : 'FALSE') . ' t=' . time());
+
+		if (!isset(self::$_licenses[$slug . '_vl']) || self::$_licenses[$slug . '_vl'] !== $key) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] no validation: ' . $key);
 			$call = TRUE;
+		}
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] call=' . ($call ? 'TRUE' : 'FALSE') . ' v=' . self::$_licenses[$slug . '_vl']);
 
 		if ($call) {
 			// TODO: move this down - after transient and API calls
 			// check license status
-			if ('valid' === self::$_licenses[$slug . '_st'])
+			if ('valid' === self::$_licenses[$slug . '_st']) {
+				self::$_status[$slug] = TRUE;
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' TRUE');
 				return TRUE;
+			}
 
 			// make the API call
 			$api_params = array(
@@ -90,31 +123,37 @@ class SyncLicensing
 				'license' => self::$_licenses[$slug],
 				'item_name' => urlencode($name)
 			);
-//SyncDebug::log(__METHOD__.'() sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
 			$response = wp_remote_get(add_query_arg($api_params, $this->_get_api_url()), array('timeout' => 15, 'sslverify' => FALSE));
-			if (is_wp_error($response))
+			if (is_wp_error($response)) {
+				self::$_status[$slug] = FALSE;
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
 				return FALSE;
+			}
 
 			// check response
 			$license_data = json_decode(wp_remote_retrieve_body($response));
-//SyncDebug::log(__METHOD__.'() license data=' . var_export($license_data, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' license data=' . var_export($license_data, TRUE));
 			if ('valid' === $license_data->license) {
 				// this license is still valid
 				self::$_licenses[$slug . '_st'] = self::STATE_ACTIVE;
 				self::$_licenses[$slug . '_tr'] = time() + self::LICENSE_TTL;
 				self::$_licenses[$slug . '_vl'] = md5($slug . $name);
-//SyncDebug::log(__METHOD__.'() vl=' . self::$_licenses[$slug . '_vl']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] vl=' . self::$_licenses[$slug . '_vl']);
 			} else {
 				// this license is no longer valid
 				self::$_licenses[$slug . '_st'] = self::STATE_UNKNOWN;
 				self::$_licenses[$slug . '_vl'] = '';
 			}
-			$this->_save_licenses();
+			self::$_dirty = TRUE;
+			$this->save_licenses();
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting dirty flag');
 		}
 
-//SyncDebug::log(__METHOD__.'() returning st=' . (self::STATE_ACTIVE === self::$_licenses[$slug . '_st'] ? 'TRUE' : 'FALSE') . ' vl=' . ($key === self::$_licenses[$slug . '_vl'] ? 'TRUE' : 'FALSE'));
+		self::$_status[$slug] = self::STATE_ACTIVE === self::$_licenses[$slug . '_st'];
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' returning st=' . (self::$_status[$slug] ? 'TRUE' : 'FALSE') . ' vl=' . ($key === self::$_licenses[$slug . '_vl'] ? 'TRUE' : 'FALSE'));
 //		return self::STATE_ACTIVE === self::$_licenses[$slug . '_st'] && $key === self::$_licenses[$slug . '_vl'];
-		return self::STATE_ACTIVE === self::$_licenses[$slug . '_st'];
+		return self::$_status[$slug];
 	}
 
 	/**
@@ -150,13 +189,13 @@ class SyncLicensing
 //SyncDebug::log(__METHOD__."('{$name}')");
 		$this->_load_licenses();
 		if (empty(self::$_licenses[$name])) {
-//SyncDebug::log(' - license empty ' . __LINE__);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' license empty');
 			return FALSE;
 		}
 
 		$extensions = SyncExtensionModel::get_extensions(TRUE);
 		if (empty($extensions[$name])) {
-//SyncDebug::log(' - extension empty ' . __LINE__);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' extension empty');
 			return FALSE;
 		}
 
@@ -170,21 +209,23 @@ class SyncLicensing
 		);
 
 		// Call the licensing API
-//SyncDebug::log(__METHOD__.'() sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
 		$response = wp_remote_post($this->_get_api_url(), array(
 			'timeout'   => 15,
 			'sslverify' => FALSE,
 			'body'      => $api_params
 		));
-//SyncDebug::log(__METHOD__.'() results=' . var_export($response, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' results=' . var_export($response, TRUE));
 
 		// check for errors
-		if (is_wp_error($response))
+		if (is_wp_error($response)) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
 			return FALSE;
+		}
 
 		// decode the license data
 		$license_data = json_decode(wp_remote_retrieve_body($response));
-//SyncDebug::log(__METHOD__.'() data=' . var_export($license_data, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($license_data, TRUE));
 
 /*
 ERROR:
@@ -217,6 +258,7 @@ SUCCESS:
 		$update = FALSE;
 
 		if ($license_data->success) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' success');
 			switch ($license_data->license) {
 			case 'valid':
 				$code = self::$_licenses[$name . '_st'] = self::STATE_ACTIVE;
@@ -245,8 +287,11 @@ SUCCESS:
 				break;
 			}
 		}
-		if ($update)
-			$this->_save_licenses();
+		if ($update) {
+			self::$_dirty = TRUE;
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting dirty');
+			$this->save_licenses();
+		}
 
 		$ret = array(
 			'code' => $code,
@@ -392,8 +437,11 @@ SUCCESS:
 			$status = 'error';
 			$message = __('Unexpected API response', 'wpsitesynccontent');
 		}
-		if ($update)
-			$this->_save_licenses();
+		if ($update) {
+			self::$_dirty = TRUE;
+			$this->save_licenses();
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting dirty');
+		}
 
 		$ret = array(
 			'code' => $code,
@@ -426,16 +474,22 @@ SUCCESS:
 			if ($modified) {
 				update_option(self::OPTION_NAME, self::$_licenses);
 			}
+			self::$_dirty = FALSE;
 		}
-//SyncDebug::log(' returning from ' . __METHOD__ . '()');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' returning');
 	}
 
 	/**
 	 * Persists the current license information.
 	 */
-	private function _save_licenses()
+	public function save_licenses()
 	{
-		update_option(self::OPTION_NAME, self::$_licenses);
+//SyncDebug::log(__METHOD__.'()');
+		if (self::$_dirty) {
+//SyncDebug::log(' - saving');
+			update_option(self::OPTION_NAME, self::$_licenses);
+			self::$_dirty = FALSE;
+		}
 	}
 
 	/**
@@ -443,6 +497,7 @@ SUCCESS:
 	 */
 	public function get_update_data()
 	{
+//SyncDebug::log(__METHOD__.'():' . __LINE__);
 		$ret = array(
 			'store_url' => $this->_get_api_url(),
 			'extensions' => array(),

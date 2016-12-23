@@ -5,6 +5,7 @@ class SyncDebug
 	const DEBUG = TRUE;
 
 	public static $_debug_output = FALSE;
+	private static $_id = NULL;
 
 	/**
 	 * Array dump - removes "array(" and ")," lines from the output
@@ -36,13 +37,24 @@ class SyncDebug
 		if (self::$_debug_output)
 			echo $msg, PHP_EOL;
 
+		if (NULL === self::$_id)
+			self::$_id = rand(10, 99);
+
+/*		$id = get_current_site()->id . '-';
+		global $wpdb;
+		$id = trim($wpdb->prefix, 'wp_');
+		if (empty($id))
+			$id = '1';
+		$id .= '-';
+		$file = dirname(dirname(__FILE__)) . '/~' . $id . 'log.txt';
+*/
 		$file = dirname(dirname(__FILE__)) . '/~log.txt';
 		$fh = @fopen($file, 'a+');
 		if (FALSE !== $fh) {
 			if (NULL === $msg)
 				fwrite($fh, current_time('Y-m-d H:i:s'));
 			else
-				fwrite($fh, current_time('Y-m-d H:i:s - ') . $msg . "\r\n");
+				fwrite($fh, current_time('Y-m-d H:i:s') . '#' . self::$_id . ' - ' . $msg . "\r\n");
 
 			if ($backtrace) {
 				$callers = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);

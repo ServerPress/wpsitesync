@@ -148,12 +148,17 @@ SyncDebug::log(__METHOD__."() sending action '{$action}' to filter 'spectrom_syn
 	 */
 	public function has_permission($cap, $id = NULL)
 	{
-SyncDebug::log(__METHOD__."('{$cap}')");
+//SyncDebug::log(__METHOD__."('{$cap}')");
 		if (0 === $this->_auth)			// are we explicitly skpping authentication checks?
 			return TRUE;				// _auth is set to 0 when controller is created with $args['auth'] => 0
 
-		if (NULL === $id)
+		if (NULL === $id) {
+//$res = $this->_user->has_cap($cap);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' has_cap(' . $cap . ') returning ' . var_export($res, TRUE));
 			return $this->_user->has_cap($cap);
+		}
+//$res = $this->_user->has_cap($cap, $id);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' has_cap(' . $cap . ') returning ' . var_export($res, TRUE));
 		return $this->_user->has_cap($cap, $id);
 	}
 
@@ -232,7 +237,7 @@ SyncDebug::log(__METHOD__."('{$cap}')");
 	 */
 	public function push(SyncApiResponse $response)
 	{
-SyncDebug::log(__METHOD__.'()');
+SyncDebug::log(__METHOD__.'():'.__LINE__);
 SyncDebug::log(' post data: ' . var_export($_POST, TRUE));
 //SyncDebug::log(' request data: ' . var_export($_REQUEST, TRUE));
 		// TODO: need to assume failure, not success - then set to success when successful
@@ -271,6 +276,7 @@ SyncDebug::log('   sync_data: ' . var_export($sync_data, TRUE));
 			if (NULL !== $sync_data) {
 SyncDebug::log(' - found target post #' . $sync_data->target_content_id);
 				$post = get_post($sync_data->target_content_id);
+				$target_post_id = $sync_data->target_content_id;
 			}
 		} else {
 			$this->post_id = $target_post_id;
@@ -280,7 +286,14 @@ SyncDebug::log(' - found target post #' . $sync_data->target_content_id);
 		if (NULL === $post) {
 SyncDebug::log(' - still no post found - look up by title');
 			$post = $this->get_post_by_title($post_data['post_title']);
+			if (NULL !== $post)
+				$target_post_id = $post->ID;
 		}
+
+		// allow add-ons to modify the ultimate target post id
+		$target_post_id = apply_filters('spectrom_sync_push_target_id', $target_post_id, $this->source_post_id, $this->source_site_key);
+		if (0 !== $target_post_id)
+			$post = get_post($target_post_id);
 
 SyncDebug::log('- found post: ' . var_export($post, TRUE));
 
@@ -314,11 +327,14 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' converting URLs ' . $this->source
 //		$post_data['post_content'] = str_replace($this->post('origin'), $url['host'], $post_data['post_content']);
 		// TODO: check if we need to update anything else like `guid`, `post_excerpt`, `post_content_filtered`
 
+		// set the user for post creation/update #70
+		wp_set_current_user($this->_user->ID);
+
 		// add/update post
 		if (NULL !== $post) {
 SyncDebug::log(' ' . __LINE__ . ' - check permission for updating post id#' . $post->ID);
 			// make sure the user performing API request has permission to perform the action
-			if ($this->has_permission('edit_post', $post->ID)) {
+			if ($this->has_permission('edit_posts', $post->ID)) {
 //SyncDebug::log(' - has permission');
 				$target_post_id = $post_data['ID'] = $post->ID;
 				$res = wp_update_post($post_data, TRUE); // ;here;
@@ -384,12 +400,20 @@ SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 
 		// TODO: need to handle deletes - postmeta that doesn't exist in Source any more but does on Target
 		// TOOD: probably better to remove all postmeta, then add_post_meta() for each item found
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' handling meta data');
 		foreach ($post_meta as $meta_key => $meta_value) {
 			foreach ($meta_value as $value) // loop through meta_value array
-				update_post_meta($target_post_id, $meta_key, $value);
+//$_v = $value;
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' key=' . $meta_key . ' (' . gettype($value) . ') value=' . var_export($_v, TRUE));
+//$_v = stripslashes($_v);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' key=' . $meta_key . ' (' . gettype($value) . ') value=' . var_export($_v, TRUE));
+//$_v = maybe_unserialize($_v);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' new value=' . var_export($_v, TRUE));
+				update_post_meta($target_post_id, $meta_key, maybe_unserialize(stripslashes($value)));
 		}
 
 		// handle taxonomy information
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' handling taxonomies');
 		$this->_process_taxonomies($target_post_id);
 
 		// check post thumbnail
@@ -400,6 +424,7 @@ SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 		}
 
 		// let the CPT add-on know that there may be additional taxonomies to update
+SyncDebug::log(__METHOD__.'():'.__LINE__ . " calling action 'spectrom_sync_push_content'");
 		do_action('spectrom_sync_push_content', $target_post_id, $post_data, $response);
 	}
 
@@ -861,7 +886,12 @@ SyncDebug::log(__METHOD__.'() image successfully handled');
 	public function unique_filename_callback($dir, $name, $ext)
 	{
 SyncDebug::log(__METHOD__."('{$dir}', '{$name}', '{$ext}')");
+		if (FALSE !== stripos($name, $ext)) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' returning "' . $name . '"');
+			return $name;
+		}
 		// this forces re-use of uploaded image names #54
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' returning "' . $name . $ext . '"');
 		return $name . $ext;
 		$filename = $name . $ext;
 

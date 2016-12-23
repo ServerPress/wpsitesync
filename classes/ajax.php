@@ -133,7 +133,7 @@ SyncDebug::log(__METHOD__.'()');
 		if (!(wp_verify_nonce($this->post('_sync_nonce', ''), 'sync'))) {
 SyncDebug::log('- failed nonce check');
 			$response->success(FALSE);
-			$response->error_code(SyncApiRequest::ERROR_BAD_NONCE); //__('Could not verify nonce.', 'wpsitesynccontent'));
+			$response->error_code(SyncApiRequest::ERROR_BAD_NONCE);
 			$response->send();
 			exit();
 		}

@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.2.2
+Version: 1.3
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,7 +24,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.2.2';
+		const PLUGIN_VERSION = '1.3';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
@@ -181,6 +181,8 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 		 */
 		public function plugins_loaded()
 		{
+			self::$_license = new SyncLicensing();
+
 //SyncDebug::log(__METHOD__.'()');
 //SyncDebug::log(__METHOD__.'() url=' . $_SERVER['REQUEST_URI']);
 //SyncDebug::log(__METHOD__.'() post=' . var_export($_POST, TRUE));
@@ -188,6 +190,8 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 			load_plugin_textdomain('wpsitesynccontent', FALSE, plugin_basename(dirname(__FILE__)) . '/languages');
 			do_action('spectrom_sync_init');
 			self::check_updates();
+//SyncDebug::log(__METHOD__.'() - saving licenses');
+			self::$_license->save_licenses();
 		}
 
 		/**
@@ -201,7 +205,6 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 				require_once($file);
 			}
 
-			self::$_license = new SyncLicensing();
 			$update_data = self::$_license->get_update_data();
 
 			// setup the updater instance for each add-on

@@ -104,12 +104,12 @@ SyncDebug::log(__METHOD__.'() - returning');
 		if (!empty($args['value']) && 32 === strlen($args['value'])) {
 			echo '<button id="sync-license-act-', $args['name'], '" type="button" class="button sync-license sync-license-activate" data="', $args['name'], '" ';
 			echo ' onclick="sync_settings.activate(this, \'', $args['name'] , '\'); return false;" >';
-			_e('Activate');
+			_e('Activate', 'wpsitesynccontent');
 			echo '</button>';
 
 			echo '<button id="sync-license-deact-', $args['name'], '" type="button" class="button sync-license sync-license-deactivate" data="', $args['name'], '" ';
 			echo ' onclick="sync_settings.deactivate(this, \'', $args['name'] , '\'); return false;" >';
-			_e('Dectivate');
+			_e('Dectivate', 'wpsitesynccontent');
 			echo '</button>';
 
 			echo '<div id="sync-license-msg-', $args['name'], '" style="display:none" class="sync-license-msg"></div>';

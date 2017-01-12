@@ -3,6 +3,11 @@
     deny from all
 </Files>
 
+<Files ~*.txt>
+    Order Deny,Allow
+    deny from all
+</Files>
+
 <files ".(xml|css|jpe?g|png|gif|js|ttf|wof|eof)$">
     Order Allow,Deny
     Allow from all

@@ -110,6 +110,13 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.3.1 - Jan 11, 2017 =
+* Fix: add placeholder file to force creation of languages/ directory.
+* Enhancement: Additional changes in preparation for WPSiteSync for BeaverBuilder.
+* Enhancement: Better error messages when empty or missing post content is encountered.
+* Enhancement: Improved Media Library image lookup for use by BeaverBuilder add-on.
+* Enhancement: Added pre processing hook for use by ACF add-on.
+
 = 1.3 - Dec 22, 2016 =
 * fix: fix author assigned on revisions when Pushing Content to Target
 * fix: add/update text domain used on some translation strings (Thanks Pedro M.)

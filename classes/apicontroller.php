@@ -54,7 +54,7 @@ class SyncApiController extends SyncInput implements SyncApiHeaders
 
 		$this->source_site_key = isset($args['site_key']) ? $args['site_key'] : $this->_get_header(self::HEADER_SITE_KEY);
 
-		$this->source = isset($args['source']) ? $args['source'] : $this->_get_header(self::HEADER_SOURCE);
+		$this->source = untrailingslashit(isset($args['source']) ? $args['source'] : $this->_get_header(self::HEADER_SOURCE));
 SyncDebug::log(__METHOD__.'() action=' . $action . ' source=' . $this->source . ' key=' . $this->source_site_key);
 
 SyncDebug::log(__METHOD__.'() - verifying nonce');
@@ -258,6 +258,9 @@ SyncDebug::log('- syncing post data Source ID#'. $this->source_post_id . ' - "' 
 
 		// Check if a post_id was specified, indicating an update to a previously synced post
 		$target_post_id = $this->post_int('target_post_id', 0);
+
+		// let add-ons know we're about to process a Push operation
+		do_action('spectrom_sync_pre_push_content', $post_data, $this->source_post_id, $target_post_id, $response);
 
 		$post = NULL;
 		if (0 !== $target_post_id) {
@@ -721,6 +724,7 @@ SyncDebug::log('- post id=' . $post_id);
 	 */
 	public function upload_media(SyncApiResponse $response)
 	{
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' max upload size=' . wp_max_upload_size() . ' file size=' . (isset($_FILES['sync_file_upload']['size']) ? $_FILES['sync_file_upload']['size'] : '-'));
 		// permissions check - make sure current_user_can('upload_files')
 		if (!$this->has_permission('upload_files')) {
 			$response->error_code(SyncApiRequest::ERROR_NO_PERMISSION);
@@ -735,7 +739,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' POST=' . var_export($_POST, TRUE)
 
 		if (!isset($_FILES['sync_file_upload'])) {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no file upload information provided');
-			$response->error_code(SyncApiRequest::ERROR_POST_CONTENT_NOT_FOUND);
+			$response->error_code(SyncApiRequest::ERROR_UPLOAD_NO_CONTENT);
 			return;
 		}
 
@@ -746,6 +750,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no file upload information provid
 		$path = $_FILES['sync_file_upload']['name'];
 
 		// check file type
+		// TODO: add validating method to SyncAttachModel class
 		$img_type = wp_check_filetype($path);
 		$mime_type = $img_type['type'];
 SyncDebug::log(__METHOD__.'() found image type=' . $img_type['ext'] . '=' . $img_type['type']);
@@ -769,11 +774,11 @@ SyncDebug::log(__METHOD__.'() found image type=' . $img_type['ext'] . '=' . $img
 		$sql = "SELECT `ID`
 				FROM `{$wpdb->posts}`
 				WHERE `post_name`=%s AND `post_type`='attachment'";
-		$res = $wpdb->get_col($wpdb->prepare($sql, basename($path, '.' . $ext)));
+		$res = $wpdb->get_col($stmt = $wpdb->prepare($sql, basename($path, '.' . $ext)));
 		$attachment_id = 0;
 		if (0 != count($res))
 			$attachment_id = intval($res[0]);
-
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' id=' . $attachment_id . ' sql=' . $stmt . ' res=' . var_export($res, TRUE));
 		// TODO: need to assume error and only set to success(TRUE) when file successfully processed
 		$response->success(TRUE);
 

@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.3
+Version: 1.3.1
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,7 +24,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.3';
+		const PLUGIN_VERSION = '1.3.1';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
@@ -169,10 +169,13 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 
 		/**
 		 * Return instance of licensing object
-		 * @return SyncLicensing
+		 * @return SyncLicensing instance of the licensing object
 		 */
 		public function get_license()
 		{
+			// this is just in case somebody calls this before the 'spectrom_sync_init' action is fired
+			if (NULL === self::$_license)
+				self::$_license = new SyncLicensing();
 			return self::$_license;
 		}
 

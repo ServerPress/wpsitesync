@@ -71,11 +71,36 @@ if ('error' === $sName) SyncDebug::log(__METHOD__.'() called with data value "er
 	public function copy(SyncApiResponse $response)
 	{
 		$this->error_code = $response->error_code;
+		$this->error_data = $response->error_data;
 		$this->notice_codes = $response->notice_codes;
 		$this->result_codes = $response->result_codes;
 		$this->notices = $response->notices;
 		foreach ($response->data as $key => $data) {
 			$this->data[$key] = $data;
+		}
+	}
+
+	/**
+	 * Used to copy the contens of a JSON encoded instance of a response instance into the current instance
+	 * @param object $json_data The JSON object
+	 */
+	public function copy_json($json_data)
+	{
+SyncDebug::log(__METHOD__.'() ' . var_export($json_data, TRUE));
+		if (isset($json_data->error_code))
+			$this->error_code = $json_data->error_code;
+		if (isset($json_data->error_data))
+			$this->error_data = $json_data->error_data;
+		if (isset($json_data->notice_codes))
+			$this->notice_codes = $json_data->notice_codes;
+		if (isset($json_data->result_codes))
+			$this->result_codes = $json_data->result_codes;
+		if (isset($json_data->notices))
+			$this->notices = $json_data->notices;
+		if (isset($json_data->data)) {
+			foreach ($json_data->data as $key => $data) {
+				$this->data[$key] = $data;
+			}
 		}
 	}
 
@@ -142,6 +167,15 @@ if ('error' === $sName) SyncDebug::log(__METHOD__.'() called with data value "er
 	}
 
 	/**
+	 * Gets any error data stored with the error code.
+	 * @return string|NULL The error data or NULL if no data associated with the error code.
+	 */
+	public function get_error_data()
+	{
+		return $this->error_data;
+	}
+
+	/**
 	 * Adds an notification message to the 'notices.' element
 	 * @param string $sMsg The notice string to return to the user
 	 * @deprecated Use `notice_code()` instead
@@ -160,6 +194,10 @@ if ('error' === $sName) SyncDebug::log(__METHOD__.'() called with data value "er
 		$this->notice_codes[] = $code;
 	}
 
+	/**
+	 * Sets the result code to be returned to the user
+	 * @param int $code The result code to be sent to the user
+	 */
 	public function result_code($code)
 	{
 		$this->result_codes[] = $code;

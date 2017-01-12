@@ -1,2 +1,4 @@
-# wpsitesync
-Public repository for WPSiteSync for Content plugin
+Sync
+====
+
+The Sync plugin

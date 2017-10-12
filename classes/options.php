@@ -22,6 +22,7 @@ class SyncOptions
 	 * 'salt' = salt value used for authentication
 	 * 'min_role' = minimum role allowed to perform SYNC operations
 	 * 'remove' = remove settings/tables on plugin deactivation
+	 * 'match_mode' = method for matching content on Target: 'title', 'slug', 'id'
 	 */
 
 	/**

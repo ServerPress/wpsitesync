@@ -45,7 +45,7 @@ class SyncApiResponse implements SyncApiHeaders
 	// return TRUE if instance is tracking any errors
 	public function has_errors()
 	{
-		if (count($this->errors) || count($this->validation) || 0 !== $this->error_code)
+		if (0 !== $this->error_code || count($this->errors) || count($this->validation))
 			return TRUE;
 		return FALSE;
 	}
@@ -149,7 +149,7 @@ SyncDebug::log(__METHOD__.'() ' . var_export($json_data, TRUE));
 	{
 		// only allow one error code
 		if (0 === $this->error_code) {
-			$this->error_code = intval($code);
+			$this->error_code = abs($code);
 			if (NULL !== $data)
 				$this->error_data = $data;
 			$this->success(FALSE);

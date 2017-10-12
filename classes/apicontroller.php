@@ -11,9 +11,9 @@ class SyncApiController extends SyncInput implements SyncApiHeaders
 
 	private static $_instance = NULL;
 
-	protected $media_id = 0;
+	protected $media_id = 0;						// id of the media being handled
 	protected $local_media_name = '';
-	public $source_site_key = NULL;				// the Source site's key
+	public $source_site_key = NULL;					// the Source site's key
 
 	private $_headers = NULL;						// stores request headers
 	private $_user = NULL;							// authenticated user making request
@@ -52,9 +52,9 @@ class SyncApiController extends SyncInput implements SyncApiHeaders
 		if (isset($args['site_key']))
 			$response->nosend = TRUE;
 
-		$this->source_site_key = isset($args['site_key']) ? $args['site_key'] : $this->_get_header(self::HEADER_SITE_KEY);
+		$this->source_site_key = isset($args['site_key']) ? $args['site_key'] : $this->get_header(self::HEADER_SITE_KEY);
 
-		$this->source = untrailingslashit(isset($args['source']) ? $args['source'] : $this->_get_header(self::HEADER_SOURCE));
+		$this->source = untrailingslashit(isset($args['source']) ? $args['source'] : $this->get_header(self::HEADER_SOURCE));
 SyncDebug::log(__METHOD__.'() action=' . $action . ' source=' . $this->source . ' key=' . $this->source_site_key);
 
 SyncDebug::log(__METHOD__.'() - verifying nonce');
@@ -176,7 +176,7 @@ SyncDebug::log(__METHOD__."() sending action '{$action}' to filter 'spectrom_syn
 	 * @param string $name The name of the request header to retrieve
 	 * @return string|NULL The requested header value or NULL if the named header is not found
 	 */
-	private function _get_header($name)
+	public function get_header($name)
 	{
 		if (NULL === $this->_headers) {
 			if (!function_exists('apache_request_headers')) {
@@ -262,6 +262,9 @@ SyncDebug::log('- syncing post data Source ID#'. $this->source_post_id . ' - "' 
 		// let add-ons know we're about to process a Push operation
 		do_action('spectrom_sync_pre_push_content', $post_data, $this->source_post_id, $target_post_id, $response);
 
+		// allow add-ons to modify the content type
+		$content_type = apply_filters('spectrom_sync_push_content_type', 'post', $target_post_id, $this);
+
 		$post = NULL;
 		if (0 !== $target_post_id) {
 SyncDebug::log(' - target post id provided in API: ' . $target_post_id);
@@ -274,7 +277,7 @@ SyncDebug::log(' - look up target id from source id: ' . $this->source_post_id);
 			$model = new SyncModel();
 			// use source's site_key for the lookup
 			// TODO: use a better variable name than $sync_data
-			$sync_data = $model->get_sync_data($this->source_post_id, $this->source_site_key);
+			$sync_data = $model->get_sync_data($this->source_post_id, $this->source_site_key, $content_type);
 SyncDebug::log('   sync_data: ' . var_export($sync_data, TRUE));
 			if (NULL !== $sync_data) {
 SyncDebug::log(' - found target post #' . $sync_data->target_content_id);
@@ -284,13 +287,13 @@ SyncDebug::log(' - found target post #' . $sync_data->target_content_id);
 		} else {
 			$this->post_id = $target_post_id;
 		}
-
+###$post = NULL; ###
 		// Get post by title, if new
 		if (NULL === $post) {
-SyncDebug::log(' - still no post found - look up by title');
-			$post = $this->get_post_by_title($post_data['post_title']);
-			if (NULL !== $post)
-				$target_post_id = $post->ID;
+			$mode = $this->get_header(self::HEADER_MATCH_MODE, 'title');
+//SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' - still no post found - use lookup_post() mode=' . $mode);
+			$post_model = new SyncPostModel();
+			$target_post_id = $post_model->lookup_post($post_data, $mode);
 		}
 
 		// allow add-ons to modify the ultimate target post id
@@ -309,11 +312,11 @@ SyncDebug::log(' - checking post type: ' . $post_data['post_type']/*$post->post_
 		}
 
 		// check parent page- don't allow if parent doesn't exist
-		if (0 !== intval($post_data['post_parent'])) {
+		if (0 !== abs($post_data['post_parent'])) {
 			$model = new SyncModel();			// does this already exist?
 SyncDebug::log(__METHOD__.'() looking up parent post #' . $post_data['post_parent']);
-//			$parent_post = $model->get_sync_target_data(intval($post_data['post_parent']), $this->post('site_key'));
-			$parent_post = $model->get_sync_data(intval($post_data['post_parent']), $this->source_site_key);
+//			$parent_post = $model->get_sync_target_data(abs($post_data['post_parent']), $this->post('site_key'));
+			$parent_post = $model->get_sync_data(abs($post_data['post_parent']), $this->source_site_key, $content_type);
 			if (NULL === $parent_post) {
 				// cannot find parent post on Target system- cannot allow push operation to continue
 				$response->error_code(SyncApiRequest::ERROR_UNRESOLVED_PARENT);
@@ -321,17 +324,19 @@ SyncDebug::log(__METHOD__.'() looking up parent post #' . $post_data['post_paren
 			}
 			// fixup the Source's parent post id with the Target's id value
 SyncDebug::log(__METHOD__.'() setting parent post to #' . $parent_post->target_content_id);
-			$post_data['post_parent'] = intval($parent_post->target_content_id);
+			$post_data['post_parent'] = abs($parent_post->target_content_id);
 		}
 
 		// change references to source URL to target URL
 		$post_data['post_content'] = str_replace($this->source, site_url(), $post_data['post_content']);
+		$post_data['post_excerpt'] = str_replace($this->source, site_url(), $post_data['post_excerpt']);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' converting URLs ' . $this->source . ' -> ' . site_url());
 //		$post_data['post_content'] = str_replace($this->post('origin'), $url['host'], $post_data['post_content']);
-		// TODO: check if we need to update anything else like `guid`, `post_excerpt`, `post_content_filtered`
+		// TODO: check if we need to update anything else like `guid`, `post_content_filtered`
 
 		// set the user for post creation/update #70
-		wp_set_current_user($this->_user->ID);
+		if (isset($this->_user->ID))
+			wp_set_current_user($this->_user->ID);
 
 		// add/update post
 		if (NULL !== $post) {
@@ -369,6 +374,7 @@ SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 			'site_key' => $this->source_site_key,
 			'source_content_id' => $this->source_post_id,
 			'target_content_id' => $this->post_id,
+			'content_type' => $content_type,
 		);
 		$model->save_sync_data($save_sync);
 
@@ -404,6 +410,7 @@ SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 		// TODO: need to handle deletes - postmeta that doesn't exist in Source any more but does on Target
 		// TOOD: probably better to remove all postmeta, then add_post_meta() for each item found
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' handling meta data');
+		$ser = NULL;
 		foreach ($post_meta as $meta_key => $meta_value) {
 			foreach ($meta_value as $value) // loop through meta_value array
 //$_v = $value;
@@ -412,6 +419,22 @@ SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' key=' . $meta_key . ' (' . gettype($value) . ') value=' . var_export($_v, TRUE));
 //$_v = maybe_unserialize($_v);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' new value=' . var_export($_v, TRUE));
+				// change Source URL references to Target URL references in meta data
+				$temp_val = maybe_unserialize(stripslashes ($value));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' meta key: "' . $meta_key . '" meta data: ' . $value);
+//SyncDebug::log(' -- ' . var_export($temp_val, TRUE));
+				if (is_array($temp_val)) {
+					if (NULL === $ser)
+						$ser = new SyncSerialize();
+					$fix_data = str_replace($this->source, site_url(), $value);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' fix data: ' . $fix_data);
+					$fix_data = $ser->fix_serialized_data($fix_data);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' fixing serialized data: ' . $fix_data);
+					$value = $fix_data;
+				} else {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not fixing serialized data');
+					$value = str_replace($this->source, site_url(), $value);
+				}
 				update_post_meta($target_post_id, $meta_key, maybe_unserialize(stripslashes($value)));
 		}
 
@@ -508,11 +531,11 @@ SyncDebug::log(__METHOD__.'() found taxonomy information: ' . var_export($taxono
 		 */
 		if (isset($taxonomies['flat']) && !empty($taxonomies['flat'])) {
 			$tags = $taxonomies['flat'];
-SyncDebug::log(__METHOD__.'() found ' . count($tags) . ' taxonomy tags');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . count($tags) . ' taxonomy tags');
 			foreach ($tags as $term_info) {
 				$tax_type = $term_info['taxonomy'];
-				$term = get_term('slug', $term_info['slug'], $tax_type, OBJECT);
-SyncDebug::log(__METHOD__.'() found taxonomy ' . $tax_type);
+				$term = get_term_by('slug', $term_info['slug'], $tax_type, OBJECT);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found taxonomy ' . $tax_type . ': ' . var_export($term, TRUE));
 				if (FALSE === $term) {
 					// term not found - create it
 					$args = array(
@@ -520,13 +543,14 @@ SyncDebug::log(__METHOD__.'() found taxonomy ' . $tax_type);
 						'slug' => $term_info['slug'],
 						'taxonomy' => $term_info['taxonomy'],
 					);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . " wp_insert_term('{$term_info['name']}', {$tax_type}, " . var_export($args, TRUE) . ')');
 					$ret = wp_insert_term($term_info['name'], $tax_type, $args);
-SyncDebug::log(__METHOD__.'() insert term [flat] result: ' . var_export($ret, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' insert term [flat] result: ' . var_export($ret, TRUE));
 				} else {
-SyncDebug::log(__METHOD__.'() term already exists');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' term already exists');
 				}
 				$ret = wp_add_object_terms($post_id, $term_info['slug'], $tax_type);
-SyncDebug::log(__METHOD__.'() add [flat] object terms result: ' . var_export($ret, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' add [flat] object terms result: ' . var_export($ret, TRUE));
 			}
 		}
 
@@ -544,100 +568,14 @@ SyncDebug::log(__METHOD__.'() add [flat] object terms result: ' . var_export($re
 		if (isset($taxonomies['hierarchical']) && !empty($taxonomies['hierarchical'])) {
 			$terms = $taxonomies['hierarchical'];
 			foreach ($terms as $term_info) {
-				$tax_type = $term_info['taxonomy'];
-SyncDebug::log(__METHOD__.'() build lineage for taxonomy: ' . $tax_type);
-
-				// first, build a lineage list of the taxonomy terms
-				$lineage = array();
-				$lineage[] = $term_info;			// always add the current term to the lineage
-				$parent = intval($term_info['parent']);
-SyncDebug::log(__METHOD__.'() looking for parent term #' . $parent);
-				if (isset($taxonomies['lineage'][$tax_type])) {
-					while (0 !== $parent) {
-						foreach ($taxonomies['lineage'][$tax_type] as $tax_term) {
-SyncDebug::log(__METHOD__.'() checking lineage for #' . $tax_term['term_id'] . ' - ' . $tax_term['slug']);
-							if ($tax_term['term_id'] == $parent) {
-SyncDebug::log(__METHOD__.'() - found term ' . $tax_term['slug'] . ' as a child of ' . $parent);
-								$lineage[] = $tax_term;
-								$parent = intval($tax_term['parent']);
-								break;
-							}
-						}
-					}
-				} else {
-SyncDebug::log(__METHOD__.'() no taxonomy lineage found for: ' . $tax_type);
-				}
-				$lineage = array_reverse($lineage);				// swap array order to start loop with top-most term first
-SyncDebug::log(__METHOD__.'() taxonomy lineage: ' . var_export($lineage, TRUE));
-
-				// next, make sure each term in the hierarchy exists - we'll end on the taxonomy id that needs to be assigned
-SyncDebug::log(__METHOD__.'() setting taxonomy terms for taxonomy "' . $tax_type . '"');
-				$generation = $parent = 0;
-				foreach ($lineage as $tax_term) {
-SyncDebug::log(__METHOD__.'() checking term #' . $tax_term['term_id'] . ' ' . $tax_term['slug'] . ' parent=' . $tax_term['parent']);
-					$term = NULL;
-					if (0 === $parent) {
-SyncDebug::log(__METHOD__.'() getting top level taxonomy ' . $tax_term['slug'] . ' in taxonomy ' . $tax_type);
-						$term = get_term_by('slug', $tax_term['slug'], $tax_type, OBJECT);
-						if (is_wp_error($term) || FALSE === $term) {
-SyncDebug::log(__METHOD__.'() error=' . var_export($term, TRUE));
-							$term = NULL;					// term not found, set to NULL so code below creates it
-						}
-SyncDebug::log(__METHOD__.'() no parent but found term: ' . var_export($term, TRUE));
-					} else {
-						$child_terms = get_term_children($parent, $tax_type);
-SyncDebug::log(__METHOD__.'() found ' . count($child_terms) . ' term children for #' . $parent);
-						if (!is_wp_error($child_terms)) {
-							// loop through the children until we find one that matches
-							foreach ($child_terms as $term_id) {
-								$term_child = get_term_by('id', $term_id, $tax_type);
-SyncDebug::log(__METHOD__.'() term child: ' . $term_child->slug);
-								if ($term_child->slug === $tax_term['slug']) {
-									// found the child term
-									$term = $term_child;
-									break;
-								}
-							}
-						}
-					}
-
-					// see if the term needs to be created
-					if (NULL === $term) {
-						// term not found - create it
-						$args = array(
-							'description'=> $tax_term['description'],
-							'slug' => $tax_term['slug'],
-							'taxonomy' => $tax_term['taxonomy'],
-							'parent' => $parent,					// indicate parent for next loop iteration
-						);
-SyncDebug::log(__METHOD__.'() term does not exist- adding name ' . $tax_term['name'] . ' under "' . $tax_type . '" args=' . var_export($args, TRUE));
-						$ret = wp_insert_term($tax_term['name'], $tax_type, $args);
-						if (is_wp_error($ret)) {
-							$term_id = 0;
-							$parent = 0;
-						} else {
-							$term_id = intval($ret['term_id']);
-							$parent = $term_id;			// set the parent to this term id so next loop iteraction looks for term's children
-						}
-SyncDebug::log(__METHOD__.'() insert term [hier] result: ' . var_export($ret, TRUE));
-					} else {
-SyncDebug::log(__METHOD__.'() found term: ' . var_export($term, TRUE));
-						if (isset($term->term_id)) {
-							$term_id = $term->term_id;
-							$parent = $term_id;							// indicate parent for next loop iteration
-						} else {
-SyncDebug::log(__METHOD__.'() ERROR: invalid term object');
-						}
-					}
-					++$generation;
-				}
-				// the loop exits with $term_id set to 0 (error) or the child-most term_id to be assigned to the object
+				$tax_type = $term_info['taxonomy'];			// get taxonomy name from API contents
+				$term_id = $this->process_hierarchical_term($term_info, $taxonomies);
 				if (0 !== $term_id) {
-SyncDebug::log(__METHOD__.'() adding term #' . $term_id . ' to object ' . $post_id);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adding term #' . $term_id . ' to object ' . $post_id);
 					$ret = wp_add_object_terms($post_id, $term_id, $tax_type);
 SyncDebug::log(__METHOD__.'() add [hier] object terms result: ' . var_export($ret, TRUE));
 				}
-			}
+			} // END FOREACH
 		}
 
 		//
@@ -686,7 +624,7 @@ SyncDebug::log(__METHOD__.'() post term found in taxonomies list- not removing i
 			} else {
 				// if the $post_term assigned to the post is NOT in the $taxonomies list, it needs to be removed
 SyncDebug::log(__METHOD__.'() ** removing term #' . $post_term->term_id . ' ' . $post_term->slug . ' [' . $post_term->taxonomy . ']');
-				wp_remove_object_terms($post_id, intval($post_term->term_id), $post_term->taxonomy);
+				wp_remove_object_terms($post_id, abs($post_term->term_id), $post_term->taxonomy);
 			}
 		}
 	}
@@ -697,7 +635,7 @@ SyncDebug::log(__METHOD__.'() ** removing term #' . $post_term->term_id . ' ' . 
 	 * @return WP_Post|NULL The WP_Post object if the title is found; otherwise NULL.
 	 */
 	// TODO: move this to a model class - doesn't belong in a controller class
-	private function get_post_by_title($title)
+/*	private function get_post_by_title($title)
 	{
 		global $wpdb;
 
@@ -716,7 +654,7 @@ SyncDebug::log('- post id=' . $post_id);
 			return $post;
 		}
 		return NULL;
-	}
+	} */
 
 	/**
 	 * Handles media uploads. Assigns attachment to posts.
@@ -746,15 +684,15 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no file upload information provid
 		// TODO: check uploaded file contents to ensure it's an image
 		// https://en.wikipedia.org/wiki/List_of_file_signatures
 
-		$featured = isset($_POST['featured']) ? intval($_POST['featured']) : 0;
+		$featured = isset($_POST['featured']) ? abs($_POST['featured']) : 0;
 		$path = $_FILES['sync_file_upload']['name'];
 
 		// check file type
-		// TODO: add validating method to SyncAttachModel class
 		$img_type = wp_check_filetype($path);
-		$mime_type = $img_type['type'];
+		// TODO: add validating method to SyncAttachModel class
+		add_filter('spectrom_sync_upload_media_allowed_mime_type', array($this, 'filter_allowed_mime_types'), 10, 2);
 SyncDebug::log(__METHOD__.'() found image type=' . $img_type['ext'] . '=' . $img_type['type']);
-		if (FALSE === strpos($mime_type, 'image/') && 'pdf' !== $img_type['ext']) {
+		if (FALSE === apply_filters('spectrom_sync_upload_media_allowed_mime_type', FALSE, $img_type)) {
 			$response->error_code(SyncApiRequest::ERROR_INVALID_IMG_TYPE);
 			$response->send();
 		}
@@ -769,7 +707,7 @@ SyncDebug::log(__METHOD__.'() found image type=' . $img_type['ext'] . '=' . $img
 //		$get_posts = new WP_Query($args);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' query results: ' . var_export($get_posts, TRUE));
 
-		// TODO: move this to a model
+		// TODO: move this to SyncAttachModel
 		global $wpdb;
 		$sql = "SELECT `ID`
 				FROM `{$wpdb->posts}`
@@ -777,18 +715,19 @@ SyncDebug::log(__METHOD__.'() found image type=' . $img_type['ext'] . '=' . $img
 		$res = $wpdb->get_col($stmt = $wpdb->prepare($sql, basename($path, '.' . $ext)));
 		$attachment_id = 0;
 		if (0 != count($res))
-			$attachment_id = intval($res[0]);
+			$attachment_id = abs($res[0]);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' id=' . $attachment_id . ' sql=' . $stmt . ' res=' . var_export($res, TRUE));
 		// TODO: need to assume error and only set to success(TRUE) when file successfully processed
 		$response->success(TRUE);
 
 		// convert source post id to target post id
-		$source_post_id = intval($_POST['post_id']);
+		$source_post_id = abs($_POST['post_id']);
 		$target_post_id = 0;
 		$model = new SyncModel();
-		$sync_data = $model->get_sync_data($source_post_id, $this->source_site_key);
+		$content_type = apply_filters('spectrom_sync_upload_media_content_type', 'post');
+		$sync_data = $model->get_sync_data($source_post_id, $this->source_site_key, $content_type);
 		if (NULL !== $sync_data)
-			$target_post_id = intval($sync_data->target_content_id);
+			$target_post_id = abs($sync_data->target_content_id);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' source id=' . $source_post_id . ' target id=' . $target_post_id);
 
 		$this->media_id = 0;
@@ -811,6 +750,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found id ' . $attachment_id . ' p
 			// TODO: handle overwriting/replacing image files of the same name
 //			$file = media_handle_upload('sync_file_upload', $this->post('post_id', 0), array(), $overrides);
 //			$response->notice_code(SyncApiRequest::NOTICE_FILE_EXISTS);
+			$this->media_id = $attachment_id;
 
 			// if it's the featured image, set that
 			if ($featured && 0 !== $target_post_id)
@@ -853,11 +793,12 @@ SyncDebug::log(__METHOD__."() wp_insert_attachment([,{$target_post_id}], '{$file
 SyncDebug::log(__METHOD__."() wp_generate_attachment_metadata({$attach_id}, '{$file['file']}') returned " . var_export($attach, TRUE));
 				wp_update_attachment_metadata($attach_id, $attach);
 				$response->set('post_id', $this->post('post_id'));
+				$this->media_id = $attach_id;
 
 				// if it's the featured image, set that
 				if ($featured && 0 !== $target_post_id) {
 SyncDebug::log(__METHOD__."() set_post_thumbnail({$target_post_id}, {$attach_id})");
-					set_post_thumbnail($target_post_id, $attach_id /*intval($file)*/);
+					set_post_thumbnail($target_post_id, $attach_id /*abs($file)*/);
 				}
 			}
 		}
@@ -877,7 +818,29 @@ SyncDebug::log(__METHOD__.'() image successfully handled');
 
 			$media = new SyncMediaModel();
 			$media->log($media_data);
+
+			// notify add-ons about media
+			do_action('spectrom_sync_media_processed', $target_post_id, $attachment_id, $this->media_id);
 		}
+	}
+
+	/**
+	 * Filter the mime types allowed in upload_media()
+	 * @param boolean $default Current allowed state
+	 * @param array $img_type The mime type information with array keys of ['type'] and ['ext']
+	 * @return boolean TRUE to allow this mime type; otherwise FALSE
+	 */
+	public function filter_allowed_mime_types($default, $img_type)
+	{
+		// TODO: use get_allowed_mime_types()
+		// if the type contains 'image/'
+		if (FALSE !== stripos($img_type['type'], 'image/'))
+			return TRUE;
+		// allow PDF files
+		if ('pdf' === $img_type['ext'])
+			return TRUE;
+
+		return $default;
 	}
 
 	/**
@@ -924,6 +887,106 @@ SyncDebug::log(__METHOD__."('{$dir}', '{$name}', '{$ext}')");
 		$parts = explode('/', $info['url']);
 		$this->local_media_name = array_pop($parts);
 		return $info;
+	}
+
+	/**
+	 * Process hierarchical term. Searches for and creates taxonomy lineages in order to find child most term id that matches hierarchy.
+	 * @param array $term_info Array of term info from the Source site
+	 * @param array $taxonomies Array of taxonomies sent via API POST request
+	 * @return int 0 to indicate error or the child-most term_id to be assigned to the target
+	 */
+	public function process_hierarchical_term($term_info, $taxonomies)
+	{
+		$tax_type = $term_info['taxonomy'];
+SyncDebug::log(__METHOD__ . '() build lineage for taxonomy: ' . $tax_type);
+
+		// first, build a lineage list of the taxonomy terms
+		$lineage = array();
+		$lineage[] = $term_info;            // always add the current term to the lineage
+		$parent = abs($term_info['parent']);
+SyncDebug::log(__METHOD__ . '() looking for parent term #' . $parent);
+		if (isset($taxonomies['lineage'][$tax_type])) {
+			while (0 !== $parent) {
+				foreach ($taxonomies['lineage'][$tax_type] as $tax_term) {
+SyncDebug::log(__METHOD__ . '() checking lineage for #' . $tax_term['term_id'] . ' - ' . $tax_term['slug']);
+					if ($tax_term['term_id'] == $parent) {
+SyncDebug::log(__METHOD__ . '() - found term ' . $tax_term['slug'] . ' as a child of ' . $parent);
+						$lineage[] = $tax_term;
+						$parent = abs($tax_term['parent']);
+						break;
+					}
+				}
+			}
+		} else {
+SyncDebug::log(__METHOD__ . '() no taxonomy lineage found for: ' . $tax_type);
+		}
+		$lineage = array_reverse($lineage);                // swap array order to start loop with top-most term first
+SyncDebug::log(__METHOD__ . '() taxonomy lineage: ' . var_export($lineage, TRUE));
+
+		// next, make sure each term in the hierarchy exists - we'll end on the taxonomy id that needs to be assigned
+SyncDebug::log(__METHOD__ . '() setting taxonomy terms for taxonomy "' . $tax_type . '"');
+		$generation = $parent = 0;
+		foreach ($lineage as $tax_term) {
+SyncDebug::log(__METHOD__ . '() checking term #' . $tax_term['term_id'] . ' ' . $tax_term['slug'] . ' parent=' . $tax_term['parent']);
+			$term = NULL;
+			if (0 === $parent) {
+SyncDebug::log(__METHOD__ . '() getting top level taxonomy ' . $tax_term['slug'] . ' in taxonomy ' . $tax_type);
+				$term = get_term_by('slug', $tax_term['slug'], $tax_type, OBJECT);
+				if (is_wp_error($term) || FALSE === $term) {
+SyncDebug::log(__METHOD__ . '() error=' . var_export($term, TRUE));
+					$term = NULL;                    // term not found, set to NULL so code below creates it
+				}
+SyncDebug::log(__METHOD__ . '() no parent but found term: ' . var_export($term, TRUE));
+			} else {
+				$child_terms = get_term_children($parent, $tax_type);
+SyncDebug::log(__METHOD__ . '() found ' . count($child_terms) . ' term children for #' . $parent);
+				if (!is_wp_error($child_terms)) {
+					// loop through the children until we find one that matches
+					foreach ($child_terms as $term_id) {
+						$term_child = get_term_by('id', $term_id, $tax_type);
+SyncDebug::log(__METHOD__ . '() term child: ' . $term_child->slug);
+						if ($term_child->slug === $tax_term['slug']) {
+							// found the child term
+							$term = $term_child;
+							break;
+						}
+					}
+				}
+			}
+
+			// see if the term needs to be created
+			if (NULL === $term) {
+				// term not found - create it
+				$args = array(
+					'description' => $tax_term['description'],
+					'slug' => $tax_term['slug'],
+					'taxonomy' => $tax_term['taxonomy'],
+					'parent' => $parent,                    // indicate parent for next loop iteration
+				);
+SyncDebug::log(__METHOD__ . '() term does not exist- adding name ' . $tax_term['name'] . ' under "' . $tax_type . '" args=' . var_export($args, TRUE));
+				$ret = wp_insert_term($tax_term['name'], $tax_type, $args);
+				if (is_wp_error($ret)) {
+					$term_id = 0;
+					$parent = 0;
+				} else {
+					$term_id = abs($ret['term_id']);
+					$parent = $term_id;            // set the parent to this term id so next loop iteraction looks for term's children
+				}
+SyncDebug::log(__METHOD__ . '() insert term [hier] result: ' . var_export($ret, TRUE));
+			} else {
+SyncDebug::log(__METHOD__ . '() found term: ' . var_export($term, TRUE));
+				if (isset($term->term_id)) {
+					$term_id = $term->term_id;
+					$parent = $term_id;                            // indicate parent for next loop iteration
+				} else {
+SyncDebug::log(__METHOD__ . '() ERROR: invalid term object');
+				}
+			}
+			++$generation;
+		}
+
+		// the loop exits with $term_id set to 0 (error) or the child-most term_id to be assigned to the object
+		return $term_id;
 	}
 }
 

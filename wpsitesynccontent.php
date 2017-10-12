@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.3.1
+Version: 1.3.2
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,7 +24,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.3.1';
+		const PLUGIN_VERSION = '1.3.2';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
@@ -46,7 +46,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 			register_activation_hook(__FILE__, array(&$this, 'activate'));
 			register_deactivation_hook(__FILE__, array(&$this, 'deactivate'));
 
-			add_action('plugins_loaded', array(&$this, 'endpoints_init'));
+			add_action('plugins_loaded', array(&$this, 'endpoints_init'), 1);
 			// don't need the wp_ajax_noprov callback- AJAX calls are always within the admin
 			add_action('wp_ajax_spectrom_sync', array(&$this, 'check_ajax_query'));
 
@@ -241,6 +241,7 @@ SyncDebug::log(__METHOD__.'() modifying filename=' . $filename);
 			}
 			return $filename;
 		}
+
 		/**
 		 * Callback for 'upgrader_pre_download' filter called in WP_Upgrader->download_package().
 		 * Used to signal the filter_unique_filename() method to modify the filename if it's too long

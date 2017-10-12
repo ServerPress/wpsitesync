@@ -4,6 +4,8 @@ class SyncDebug
 {
 	const DEBUG = TRUE;
 
+	public static $_debug = FALSE;
+
 	public static $_debug_output = FALSE;
 	private static $_id = NULL;
 
@@ -31,7 +33,7 @@ class SyncDebug
 	 */
 	public static function log($msg = NULL, $backtrace = FALSE)
 	{
-		if (!defined('WP_DEBUG') || !WP_DEBUG)
+		if (!self::$_debug && !defined('WP_DEBUG') || !WP_DEBUG)
 			return;
 
 		if (self::$_debug_output)
@@ -57,7 +59,7 @@ class SyncDebug
 				fwrite($fh, current_time('Y-m-d H:i:s') . '#' . self::$_id . ' - ' . $msg . "\r\n");
 
 			if ($backtrace) {
-				$callers = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+				$callers = debug_backtrace(defined('DEBUG_BACKTRACE_IGNORE_ARGS') ? DEBUG_BACKTRACE_IGNORE_ARGS : FALSE);
 				array_shift($callers);
 				$path = dirname(dirname(dirname(plugin_dir_path(__FILE__)))) . DIRECTORY_SEPARATOR;
 

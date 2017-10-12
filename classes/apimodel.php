@@ -21,6 +21,9 @@ class SyncApiModel
 
 		$this->options = wp_parse_args($options, $default_options);
 
+		// check for maintenance mode plugins
+		$this->_maintenance_check();
+
 		add_action('init', array(&$this, 'register_api'), 1000);
 
 		// endpoints work on the front end only
@@ -167,6 +170,72 @@ SyncDebug::log(__METHOD__.'() vals=' . var_export($values, TRUE));
 			$values[] = '';
 
 		return array_combine($keys, $values);
+	}
+
+	/**
+	 * Check for maintenance mode plugins and disable their actions that may interfere with WPSiteSync's API
+	 */
+	private function _maintenance_check()
+	{
+		// first, check to see if the current request is for a WPSiteSync API call
+		if (!isset($_GET['pagename']) || WPSiteSyncContent::API_ENDPOINT !== $_GET['pagename'])
+			return;
+
+		// now we know it's a WPSiteSync API call. Detect and disable any maintenance mode type plugins
+
+		// look for 'WP Maintenance Mode' plugin - https://wordpress.org/plugins/wp-maintenance-mode/ - 400,000 installs
+		if (class_exists('WP_Maintenance_Mode', FALSE)) {
+			add_filter('option_wpmm_settings', array($this, 'filter_wpmm_options'), 10, 2);
+			return;
+		}
+		// look for 'Maintenance' plugin - https://wordpress.org/plugins/maintenance/ - 300,000 installs
+		if (class_exists('maintenance', FALSE)) {
+			add_filter('option_maintenance_options', array($this, 'filter_maintenance_options'), 10, 2);
+			return;
+		}
+		// look for 'Coming Soon' plugin - https://wordpress.org/plugins/coming-soon/ - 300,000 installs
+		if (class_exists('SEED_CSP4', FALSE)) {
+			add_filter('seed_csp4_get_settings', array($this, 'filter_coming_soon_options'), 10 ,1);
+			return;
+		}
+
+//die('inside ' . __METHOD__. '():' . __LINE__ . ' set=' . var_export($settings, TRUE));
+	}
+
+	/**
+	 * Filter for WP Maintenance Mode plugins' configuration settings. Used to deactivate plugin behavior
+	 * @param array $value The settings to filter; called from get_option()
+	 * @param string $option The option name, in this case always 'maintenance_options'
+	 * @return array The modified settings for WP Maintenance Mode; with the maintenance mode deactivated.
+	 */
+	public function filter_wpmm_options($value, $option = '')
+	{
+		$value['general']['status'] = 0;
+		return $value;
+	}
+
+	/**
+	 * Filter for the Maintenance plugin's configuration settings. Used to turn off maintenance mode.
+	 * @param array $value The settings to filter; called from get_option()
+	 * @param string $option The option name, in this case always 'maintenance_options'
+	 * @return array The modified settings for Maintenance; with the maintenance mode turned off.
+	 */
+	public function filter_maintenance_options($value, $option = '')
+	{
+		if (isset($value['state']) && !empty($value['state']))
+			$value['state'] = 0;	// this makes load_maintenance_page() not load the maintenance page
+		return $value;
+	}
+
+	/**
+	 * Filter for the Coming Soon plugin's configuration settings. Used to turn off it's features
+	 * @param array $settings The Coming Soon plugins settings
+	 * @return array The modified settings, with the 'status' value set to 0 to disable it
+	 */
+	public function filter_coming_soon_options($settings)
+	{
+		$settings['status'] = '0';
+		return $settings;
 	}
 }
 

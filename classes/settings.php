@@ -154,7 +154,7 @@ class SyncSettings extends SyncInput
 		}
 		echo '<input type="hidden" name="sync-settings-tab" value="', esc_attr($this->_tab), '" />';
 		do_settings_sections('sync');
-		submit_button(); 
+		submit_button();
 		echo '</form>';
 		echo '<p>', __('WPSiteSync for Content Site key: ', 'wpsitesynccontent'), '<b>', SyncOptions::get('site_key'), '</b></p>';
 		echo '</div><!-- #tab_container -->';
@@ -209,6 +209,7 @@ class SyncSettings extends SyncInput
 				'salt' => '',
 				'min_role' => '',
 				'remove' => '0',
+				'match_mode' => 'title',
 			)
 		);
 
@@ -307,6 +308,34 @@ class SyncSettings extends SyncInput
 			)
 		);
 
+		switch ($data['match_mode']) {
+		case 'slug':		$desc = __('Slug - Search for matching Content on Target by Post Slug.', 'wpsitesynccontent');
+			break;
+		case 'id':			$desc = __('ID - Search for matching Content on Target by Post ID.', 'wpsitesynccontent');
+			break;
+		case 'title':		$desc = __('Post Title - Search for matching Content on Target by Post Title.', 'wpsitesynccontent');
+		default:
+			break;
+		}
+
+		add_settings_field(
+			'match_mode',										// field id
+			__('Content Match Mode:', 'wpsitesynccontent'),		// title
+			array($this, 'render_select_field'),			// callback
+			self::SETTINGS_PAGE,							// page
+			$section_id,									// section id
+			array(											// args
+				'name' => 'match_mode',
+				'value' => $data['match_mode'],
+				'options' => array(
+					'title' => __('Post Title', 'wpsitesynccontent'),
+					'slug' => __('Post Slug', 'wpsitesynccontent'),
+//					'id' => __('Post ID', 'wpsitesynccontent'),
+				),
+				'description' => $desc,
+			)
+		);
+
 /*
 		add_settings_field(
 			'salt',											// field id
@@ -389,9 +418,12 @@ class SyncSettings extends SyncInput
 		printf('<select id="spectrom-form-%s" name="spectrom_sync_settings[%s]" value="%s">',
 			$args['name'], $args['name'], esc_attr($args['value']));
 		foreach ($args['options'] as $key => $value) {
-			echo '<option value="', esc_attr($key), '">', esc_html($value), '</option>';
+			echo '<option value="', esc_attr($key), '" ', selected($key, $args['value']), '>', esc_html($value), '</option>';
 		}
 		echo '</select>';
+
+		if (!empty($args['description']))
+			echo '<p><em>', esc_html($args['description']), '</em></p>';
 	}
 
 	/**
@@ -484,19 +516,40 @@ class SyncSettings extends SyncInput
 
 		$missing_error = FALSE;
 		$re_auth = FALSE;
+
 		foreach ($values as $key => $value) {
 //SyncDebug::log(" key={$key}  value=[{$value}]");
 			if (empty($values[$key]) && 'password' === $key) {
 				// ignore this so that passwords are not required on every settings update
 			} else {
 				if ('host' === $key) {
-					if (FALSE === $this->_is_valid_url($value)) {
-						add_settings_error('sync_options_group', 'invalid-url', __('Invalid URL.', 'wpsitesynccontent'));
+					// check to see if 'host' is changing and force use of password
+					if ($value !== $settings['host'] && empty($values['password'])) {
+						add_settings_error('sync_host_password', 'missing-password', __('When changing Target site, a password is required.', 'wpsitesynccontent'));
 						$out[$key] = $settings[$key];
 					} else {
-						$out[$key] = $value;
-						if ($out[$key] !== $settings[$key])
-							$re_auth = TRUE;
+						if (FALSE === $this->_is_valid_url($value)) {
+							add_settings_error('sync_options_group', 'invalid-url', __('Invalid URL.', 'wpsitesynccontent'));
+							$out[$key] = $settings[$key];
+						} else {
+							$out[$key] = $this->_normalize_url($value);
+							if ($out[$key] !== $settings[$key])
+								$re_auth = TRUE;
+						}
+					}
+				} else if ('username' === $key) {
+					// TODO: refactor so that 'host' and 'username' password checking is combined
+					// check to see if 'username' is changing and force use of password
+					if ($value !== $settings['username'] && empty($values['password'])) {
+						add_settings_error('sync_username_password', 'missing-password', __('When changing Username, a password is required.', 'wpsitesynccontent'));
+						$out[$key] = $settings[$key];
+					} else {
+						if (!empty($value)) {
+							if ($value !== $settings[$key])
+								$re_auth = TRUE;
+							$out[$key] = $value;
+						} else
+							$out[$key] = $settings['username'];
 					}
 				} else if (0 === strlen(trim($value))) {
 					if (!$missing_error) {
@@ -510,8 +563,8 @@ class SyncSettings extends SyncInput
 						$out[$key] = $value;
 				} else {
 					$out[$key] = $value;
-					if ('username' === $key && $out[$key] !== $settings[$key])
-						$re_auth = TRUE;
+//					if ('username' === $key && $out[$key] !== $settings[$key])
+//						$re_auth = TRUE;
 				}
 			}
 		}
@@ -577,6 +630,24 @@ class SyncSettings extends SyncInput
 	}
 
 	/**
+	 * Normalizes the Target url, removes usernames, passwords, queries and fragments and forces trailing slash only when path is present.
+	 * @param string $url The URL to be normalized
+	 * @return string The normalized URL
+	 */
+	private function _normalize_url($url)
+	{
+		$parts = parse_url($url);
+//SyncDebug::log(__METHOD__.'() parts=' . var_export($parts, TRUE));
+		$ret = $parts['scheme'] . '://' . $parts['host'];
+		if (!empty($parts['port']))
+			$ret .= ':' . $parts['port'];
+		$path = isset($parts['path']) ? trim($parts['path'], '/') : '';
+		if (!empty($path))
+			$ret .= '/' . $path . '/';
+		return $ret;
+	}
+
+	/**
 	 * Callback for adding contextual help to Sync Settings page
 	 */
 	public function contextual_help()
@@ -604,7 +675,8 @@ class SyncSettings extends SyncInput
 				'<p>' . __('<strong>Host Name of Target</strong>: Enter the URL of the Target website you wish to Sync with.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Username on Target</strong>: Enter the Administrator username for the Target website.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Password on Target</strong>: Enter the Administrator password for the Target website.', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<strong>Strict Mode:</strong>: Select if WordPress and WPSiteSync for Content should be the same versions on the Source and the Target.', 'wpsitesynccontent') . '</p>'
+				'<p>' . __('<strong>Strict Mode</strong>: Select if WordPress and WPSiteSync for Content should be the same versions on the Source and the Target.', 'wpsitesynccontent') . '</p>' .
+				'<p>' . __('<strong>Match Mode</strong>: How WPSiteSync should match posts on the Target. You can select "Post Title" (default), or "Post Slug" to match Content by Title or Slug.', 'wpsitesynccontent') . '</p>'
 //				'<p>' . __('<strong>Authentication Salt:</strong>: Enter a salt to use when Content is sent to current site or leave blank.', 'wpsitesynccontent') . '</p>' .
 //				'<p>' . __('<strong>Minimum Role allowed to SYNC Content</strong>: Select minimum role of user who can Sync Content to current site.', 'wpsitesynccontent') . '</p>'
 		));

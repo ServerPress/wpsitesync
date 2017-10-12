@@ -19,8 +19,10 @@ class SyncAdmin
 		add_action('add_meta_boxes', array(&$this, 'add_sync_metabox'));
 		add_filter('plugin_action_links_wpsitesynccontent/wpsitesynccontent.php', array(&$this, 'plugin_action_links'));
 
+		add_action('before_delete_post', array($this, 'before_delete_post'));
+
 		// TODO: only init if running settings page
-		SyncSettings::get_instance();		
+		SyncSettings::get_instance();
 	}
 
 	/*
@@ -134,7 +136,7 @@ class SyncAdmin
 		echo '<div id="sync-contents">';
 
 		// display the content details
-		$content_details = $this->_get_content_details();
+		$content_details = $this->get_content_details();
 		// TODO: set details content
 		echo '<div id="sync-details" style="display:none">';
 		echo $content_details;
@@ -185,13 +187,14 @@ class SyncAdmin
 		echo '<div id="sync-success-msg">', __('Content successfully sent to Target system.', 'wpsitesynccontent'), '</div>';
 		if (!class_exists('WPSiteSync_Pull', FALSE))
 				echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Please activate the Pull extension.', 'wpsitesynccontent'), '</div></div>';
+		echo '<div id="sync-runtime-err-msg">', __('A PHP runtime error occured while processing your request. Examine Target log files for more information.', 'wpsitesynccontent'), '</div>';
 		echo '</div>';
 
 		echo '</div>'; // #sync-contents
 
 		echo '<div style="display:none">';
 		echo '<span id="sync-msg-working">', __('Pushing Content to Target...', 'wpsitesynccontent'), '</span>';
-		echo '<span id="sync-msg-update-changes"><span class="error"><b>', __('Please UPDATE your changes in order to Sync.', 'wpsitesynccontent'), '</b></span></span>';
+		echo '<span id="sync-msg-update-changes"><b>', __('Please UPDATE your changes in order to Sync.', 'wpsitesynccontent'), '</b></span>';
 		do_action('spectrom_sync_ui_messages');
 		echo '</div>';
 	}
@@ -211,7 +214,7 @@ class SyncAdmin
 	 * Obtain details about the Content from the Target site
 	 * @return string HTML contents to display within the Details section within the UI
 	 */
-	private function _get_content_details()
+	public function get_content_details()
 	{
 		global $post;
 		$meta_key = '_spectrom_sync_details_' . sanitize_key(SyncOptions::get('target'));
@@ -273,7 +276,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - result data: ' . var_export($re
 				if (isset($response_body) && isset($response_body->data)) {
 					$response_data = $response_body->data;
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - target data: ' . var_export($response_data, TRUE));
-					// take the data returned from the API and 
+					// take the data returned from the API and
 					$content_data = array(
 						'target' => SyncOptions::get('target'),
 						'source_post_id' => $post->ID,
@@ -301,6 +304,16 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - target data: ' . var_export($re
 			$content = SyncView::load_view('content_details', $content_data, TRUE);
 
 		return $content;
+	}
+
+	/**
+	 * Callback for delete post action. Removes all sync records associated with Content.
+	 * @param int $post_id The post ID being deleted
+	 */
+	public function before_delete_post($post_id)
+	{
+		$model = new SyncModel();
+		$model->remove_all_sync_data($post_id);
 	}
 }
 

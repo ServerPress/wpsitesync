@@ -40,6 +40,13 @@ class SyncAjax extends SyncInput
 SyncDebug::log(__METHOD__."('{$operation}')");
 		$response = new SyncApiResponse(TRUE);
 
+		// set headers
+//		header('Content-Type: text/html; charset=ISO-utf-8');
+		header('Content-Type: application/json; charset=utf-8');
+		header('Content-Encoding: ajax');
+		header('Cache-Control: private, max-age=0');
+		header('Expires: -1');
+
 		// perform authentication checking: must be logged in, an 'Author' role or higher
 		if (!is_user_logged_in()) {
 			$response->error_code(SyncApiRequest::ERROR_SESSION_EXPIRED, $operation);

@@ -55,6 +55,9 @@ $prep = $wpdb->prepare($sql, $source, $site_key, $name, $token, $name, $token);
 		if (NULL !== $res) {
 			$username = $res->auth_name;
 			$user = get_user_by('login', $username);
+			// if lookup by login name failed, try email address #118
+			if (FALSE === $user)
+				$user = get_user_by('email', $username);
 			if (FALSE !== $user)
 				return $user;
 		}

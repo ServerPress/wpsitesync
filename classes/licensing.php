@@ -124,7 +124,7 @@ class SyncLicensing
 				'item_name' => urlencode($name)
 			);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
-			$response = wp_remote_get(add_query_arg($api_params, $this->_get_api_url()), array('timeout' => 15, 'sslverify' => FALSE));
+			$response = wp_remote_get($remote_url = add_query_arg($api_params, $this->_get_api_url()), array('timeout' => 15, 'sslverify' => FALSE));
 			if (is_wp_error($response)) {
 				self::$_status[$slug] = FALSE;
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
@@ -132,21 +132,26 @@ class SyncLicensing
 			}
 
 			// check response
-			$license_data = json_decode(wp_remote_retrieve_body($response));
+			$response_body = wp_remote_retrieve_body($response);
+			if (!empty($response_body)) {
+				$license_data = json_decode($response_body);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' license data=' . var_export($license_data, TRUE));
-			if ('valid' === $license_data->license) {
-				// this license is still valid
-				self::$_licenses[$slug . '_st'] = self::STATE_ACTIVE;
-				self::$_licenses[$slug . '_tr'] = time() + self::LICENSE_TTL;
-				self::$_licenses[$slug . '_vl'] = md5($slug . $name);
+				if ('valid' === $license_data->license) {
+					// this license is still valid
+					self::$_licenses[$slug . '_st'] = self::STATE_ACTIVE;
+					self::$_licenses[$slug . '_tr'] = time() + self::LICENSE_TTL;
+					self::$_licenses[$slug . '_vl'] = md5($slug . $name);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] vl=' . self::$_licenses[$slug . '_vl']);
+				} else {
+					// this license is no longer valid
+					self::$_licenses[$slug . '_st'] = self::STATE_UNKNOWN;
+					self::$_licenses[$slug . '_vl'] = '';
+				}
+				self::$_dirty = TRUE;
+				$this->save_licenses();
 			} else {
-				// this license is no longer valid
-				self::$_licenses[$slug . '_st'] = self::STATE_UNKNOWN;
-				self::$_licenses[$slug . '_vl'] = '';
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' slug=' . $slug . ' url=' . $remote_url . ' with params: ' . var_export($api_params, TRUE) . ' returned: ' . $response_body);
 			}
-			self::$_dirty = TRUE;
-			$this->save_licenses();
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting dirty flag');
 		}
 

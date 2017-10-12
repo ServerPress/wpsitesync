@@ -123,20 +123,21 @@ SyncDebug::log(__METHOD__.'()');
 		global $wpdb;
 		require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 
-		$charset_collate = '';
-		if (!empty($wpdb->charset))
-			$charset_collate = " DEFAULT CHARACTER SET {$wpdb->charset} ";
+//		$charset_collate = '';
+//		if (!empty($wpdb->charset))
+//			$charset_collate = " DEFAULT CHARACTER SET {$wpdb->charset} ";
 
 		// determine default collation for tables being created
-		$collate = NULL;
-		if (defined('DB_COLLATE'))
-			$collate = DB_COLLATE;							// if the constant is declared, use it
-		if ('utf8_unicode_ci' === $collate)					// fix for CREATE TABLEs on WPEngine
-			$collate = 'utf8mb4_unicode_ci';
-		if (empty($collate) && !empty($wpdb->collate))		// otherwise allow wpdb class to specify
-			$collate = $wpdb->collate;
-		if (!empty($collate))
-			$charset_collate .= " COLLATE {$collate} ";
+//		$collate = NULL;
+//		if (defined('DB_COLLATE'))
+//			$collate = DB_COLLATE;							// if the constant is declared, use it
+//		if ('utf8_unicode_ci' === $collate)					// fix for CREATE TABLEs on WPEngine
+//			$collate = 'utf8mb4_unicode_ci';
+//		if (empty($collate) && !empty($wpdb->collate))		// otherwise allow wpdb class to specify
+//			$collate = $wpdb->collate;
+//		if (!empty($collate))
+//			$charset_collate .= " COLLATE {$collate} ";
+		$charset_collate = $wpdb->get_charset_collate();
 
 		$aTables = $this->get_table_data();
 		foreach ($aTables as $table => $sql) {

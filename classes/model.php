@@ -6,6 +6,7 @@ class SyncModel
 
 	private $_sync_table = NULL;
 	private static $_taxonomies = array();
+	private $_edit_user_id = FALSE;
 
 	public function __construct()
 	{
@@ -37,6 +38,23 @@ class SyncModel
 			WHERE `target_content_id`=%d AND `content_type`=%s
 			LIMIT 1";
 		$sql = $wpdb->prepare($sql, $target_id, $content_type);
+SyncDebug::log(__METHOD__.'() sql=' . $sql);
+		$wpdb->query($sql);
+	}
+
+	/**
+	 * Removes all WPSiteSync data for a given post ID
+	 * @param int $post_id The ID of the Content to remove. Can be used on Source or Target; uses site key to distinguish context.
+	 */
+	public function remove_all_sync_data($post_id)
+	{
+		$site_key = SyncOptions::get('site_key');
+
+		global $wpdb;
+		$sql = "DELETE FROM `{$this->_sync_table}`
+			WHERE (`source_content_id`=%d AND `site_key`=%s) OR
+				(`target_content_id`=%d AND `target_site_key`=%s)";
+		$sql = $wpdb->prepare($sql, $post_id, $site_key, $post_id, $site_key);
 SyncDebug::log(__METHOD__.'() sql=' . $sql);
 		$wpdb->query($sql);
 	}
@@ -77,7 +95,11 @@ SyncDebug::log(__METHOD__.'() updating ' . $data['source_content_id']);
 			$wpdb->update($this->_sync_table, $data, array('sync_id' => $sync_data->sync_id));
 		} else {
 SyncDebug::log(__METHOD__.'() inserting ' . $data['source_content_id']);
-			$wpdb->insert($this->_sync_table, $data);
+			$res = $wpdb->insert($this->_sync_table, $data);
+			// TODO: when insert fails, display error message/recover
+//SyncDebug::log(__METHOD__.'() res=' . var_export($res, TRUE));
+//if (FALSE === $res)
+//	SyncDebug::log(__METHOD__.'() sql=' . $wpdb->last_query);
 		}
 	}
 
@@ -161,6 +183,18 @@ SyncDebug::log(__METHOD__.'() sql: ' . $sql);
 		$ret = $wpdb->get_row($sql);
 SyncDebug::log(__METHOD__.'() sql=' . $sql . ' returned ' . var_export($ret, TRUE));
 		return $ret;
+	}
+
+	/**
+	 * Updates an existing record in the table with new information
+	 * @global type $wpdb
+	 * @param type $where
+	 * @param type $update
+	 */
+	public function update($where, $update)
+	{
+		global $wpdb;
+		$wpdb->update($this->_sync_table, $update, $where);
 	}
 
 	/**
@@ -248,7 +282,7 @@ SyncDebug::log(__METHOD__.'() post id=' . $post_id);
 			$skip_keys = array('_edit_lock', '_edit_last');
 			foreach ($post_meta as $key => $value) {
 				// remove any '_spectrom_sync_' meta data and the '_edit...' meta data
-				if (strpos('_spectrom_sync_', $key) || in_array($key, $skip_keys)) {
+				if ('_spectrom_sync_' === substr($key, 0, 15) || in_array($key, $skip_keys)) {
 					unset($post_meta[$key]);
 					continue;
 				}

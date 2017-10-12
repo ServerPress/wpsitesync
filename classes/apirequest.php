@@ -33,6 +33,7 @@ class SyncApiRequest implements SyncApiHeaders
 	const ERROR_CONTENT_UPDATE_FAILED = 26;
 	const ERROR_CANNOT_WRITE_TOKEN = 27;
 	const ERROR_UPLOAD_NO_CONTENT = 28;
+	const ERROR_PHP_ERROR_ON_TARGET = 29;
 
 	const NOTICE_FILE_EXISTS = 1;
 	const NOTICE_CONTENT_SYNCD = 2;
@@ -42,7 +43,7 @@ class SyncApiRequest implements SyncApiHeaders
 	public $host = NULL;						// URL of the host site we're pushing to
 	private $_source_domain = NULL;				// domain sending the post information
 
-	private $_response = NULL;
+	private $_response = NULL;					// the SyncApiResponse instance for the current request
 
 	private $_user_id = 0;
 	private $_target_data = array();
@@ -123,7 +124,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($data, TRUE))
 		// check value returned from API call
 		if (is_wp_error($data) || $response->has_errors()) {
 			// an error occured somewhere along the way. report it and return
-//			$response->error_code(intval($res->get_message()));
+//			$response->error_code(abs($res->get_message()));
 			return $response;
 		}
 
@@ -142,6 +143,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($data, TRUE))
 		$remote_args['headers'][self::HEADER_SOURCE] = site_url();
 //		$remote_args['headers'][self::HEADER_SITE_KEY] = WPSiteSyncContent::get_option('site_key'); // $model->generate_site_key();
 		$remote_args['headers'][self::HEADER_SITE_KEY] = SyncOptions::get('site_key'); // $model->generate_site_key();
+		$remote_args['headers'][self::HEADER_MATCH_MODE] = SyncOptions::get('match_mode', 'title');
 //SyncDebug::log(__METHOD__.'() plugin sitekey=' . WPSiteSyncContent::get_option('site_key') . ' // option sitekey=' . SyncOptions::get('site_key'));
 		if (!isset($remote_args['timeout']))
 			$remote_args['timeout'] = 30;
@@ -165,7 +167,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api result from "' . $action . '"
 
 			// validate the host and credentials
 			if (!($request['response']['code'] >= 200 && $request['response']['code'] < 300)) {
-				$response->error_code(self::ERROR_BAD_POST_RESPONSE, intval($request['response']['code']));
+				$response->error_code(self::ERROR_BAD_POST_RESPONSE, abs($request['response']['code']));
 			} else if (!isset($request['headers'][self::HEADER_SYNC_VERSION])) {
 				$response->error_code(self::ERROR_NOT_INSTALLED);
 			} else if (WPSiteSyncContent::PLUGIN_VERSION !== $request['headers'][self::HEADER_SYNC_VERSION]) {
@@ -178,11 +180,12 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api result from "' . $action . '"
 
 			// API request went through, check for error_code returned in JSON results
 			$request_body = $this->_adjust_response_body($request['body']);
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response body: ' . $request_body); // $request['body']);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response body: ' . $request_body); // $request['body']);
 			$response->response = json_decode($request_body /*$request['body']*/);
 			// TODO: convert error/notice codes into strings at this point.
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' received response from Target for "' . $action . '":');
-SyncDebug::log(var_export($response->response, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ .' body: ' . $request_body);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - ' . var_export($response->response, TRUE));
 
 			// examine the Target response's error codes and assign them to the local system's response object
 			// TODO: Use SyncResponse::copy() method
@@ -216,7 +219,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response: ' . var_export($respons
 				// only report success if no other error codes have been added to response object
 //$response->response->error_code) { // 
 //				if (0 === $response->get_error_code()) {
-				if (0 === intval($response->response->error_code)) {
+				if (0 === abs($response->response->error_code)) {
 					$response->success(TRUE);
 					// if it was an authentication request, store the auth cookies in user meta
 					// TOOD: need to do this differently to support auth cookies from multiple Targets
@@ -226,6 +229,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' perform after action logging "' .
 					switch ($action) {
 					case 'auth':					// no logging, but add to source table and set target site_key
 						if (isset($response->response->data)) {
+							// TODO: deprecated
 							update_user_meta($this->_user_id, 'spectrom_site_cookies', $response->response->data->auth_cookie);
 							update_user_meta($this->_user_id, 'spectrom_site_nonce', $response->response->data->access_nonce);
 							update_user_meta($this->_user_id, 'spectrom_site_target_uid', $response->response->data->user_id);
@@ -286,13 +290,26 @@ else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error code=' . $response->ge
 	 */
 	private function _adjust_response_body($body)
 	{
+		$body = trim($body);
+		$error = FALSE;
 		if ('{' !== $body[0]) {
+SyncDebug::log(__METHOD__.'() found extra data in response content: ' . var_export($body, TRUE));
+			// checks to see that the JSON payload starts with '{"error_code":' - which is the initial data send in a SyncApiResponse object
 			$pos = strpos($body, '{"error_code":');
 			if (FALSE !== $pos)
 				$body = substr($body, $pos);
-			$pos = strpos($body, '"}}');
-			if (FALSE !== $pos)
-				$body = substr($body, 0, $pos + 3);
+//			$pos = strpos($body, '"}}');
+//			if (FALSE !== $pos)
+//				$body = substr($body, 0, $pos + 3);
+			// make sure that a '}' is the last character of the response data
+			$pos = strrpos($body, '}');
+			if ($pos !== strlen($body) - 1)
+				$body = substr($body, 0, $pos + 1);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response body=' . var_export($body, TRUE));
+		}
+		if (FALSE === strpos($body, '{')) {
+			// no JSON data present in response
+			$body = '{"error_code":' . self::ERROR_PHP_ERROR_ON_TARGET . ',"has_errors":1,"success":0,"data":{"error":"none"}}';
 		}
 		return $body;
 	}
@@ -544,6 +561,10 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 //SyncDebug::log(__METHOD__.'() encrypting password');
 			$auth = new SyncAuth();
 			$data['password'] = $auth->encode_password($data['password'], $data['host']);
+
+			$parts = explode(':', $data['password']);
+			$this->_target_data['password'] = $data['password'] = $parts[0];
+			$this->_target_data['encode'] = $data['encode'] = $parts[1];
 		}
 //SyncDebug::log(__METHOD__.'() data: ' . var_export($data, TRUE));
 
@@ -603,7 +624,7 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 	 */
 	private function _push($data)
 	{
-		$post_id = intval($data['post_id']);
+		$post_id = abs($data['post_id']);
 		return $this->get_push_data($post_id, $data);
 	}
 
@@ -681,11 +702,13 @@ SyncDebug::log(__METHOD__.'() id #' . $post_id);
 		// TODO: we'll need to add the media sizes on the Source to the data being sent so the Target can generate image sizes
 
 		// if no content, there's nothing to do
-		if (empty($content))
-			return;
+//		if (empty($content))
+//			return;
 
 		// sometimes the insert media into post doesn't add a space...this will hopefully fix that
 		$content = str_replace('alt="', ' alt="', $content);
+		if (empty($content))
+			return TRUE;
 
 		// TODO: add try..catch
 		// TODO: can we use get_media_embedded_in_content()?
@@ -732,7 +755,7 @@ SyncDebug::log(__METHOD__.'() <img src="' . $src_attr . '" class="' . $class_att
 			// try to use class= attribute to get original image id and send that
 			foreach ($classes as $class) {
 				if ('wp-image-' === substr($class, 0, 9)) {
-					$img_id = intval(substr($class, 9));
+					$img_id = abs(substr($class, 9));
 					$img_post = get_post($img_id, OBJECT);
 					if (NULL !== $img_post) {
 						$img_file = $img_post->guid;
@@ -755,8 +778,10 @@ SyncDebug::log(__METHOD__.'() <img src="' . $src_attr . '" class="' . $class_att
 						break;
 					}
 				}
-				if ($this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
-					return FALSE;
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling send_media("' . $src_attr . '", ' . $post_id . ', ' . $post_thumbnail_id . ', ' . $img_id . ')');
+//				if ($this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
+//					return FALSE;
+				$this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id);
 			}
 		}
 
@@ -782,7 +807,8 @@ SyncDebug::log(__METHOD__.'() - found pdf attachment id ' . $attach_id);
 						break;
 					}
 				}
-				$this->send_media($href_attr, $post_id, $post_thumbnail_id, $attach_id);
+				if (0 !== $attach_id)			// https://wordpress.org/support/topic/bugs-68/
+					$this->send_media($href_attr, $post_id, $post_thumbnail_id, $attach_id);
 			} else {
 //SyncDebug::log(' - no attachment to send');
 			}
@@ -791,7 +817,7 @@ SyncDebug::log(__METHOD__.'() - found pdf attachment id ' . $attach_id);
 		// handle the featured image
 		if ('' !== $post_thumbnail_id) {
 SyncDebug::log(__METHOD__.'() featured image:');
-			$img = wp_get_attachment_image_src($post_thumbnail_id, 'large');
+			$img = wp_get_attachment_image_src($post_thumbnail_id, 'full');
 SyncDebug::log('  src=' . var_export($img, TRUE));
 			// convert site url to relative path
 			if (FALSE !== $img) {
@@ -818,8 +844,13 @@ SyncDebug::log(__METHOD__.'() image ' . $path . ' has already been sent');
 	 */
 	public function set_source_domain($domain)
 	{
+//SyncDebug::log(__METHOD__.'() domain=' . $domain);
 		// sanitize value to remove protocol and slashes
-		$this->_source_domain = parse_url($domain, PHP_URL_HOST);
+		if (FALSE !== stripos($domain, 'http') || FALSE !== strpos($domain, '/'))
+			$domain = parse_url($domain, PHP_URL_HOST);
+
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' domain: ' . $domain);
+		$this->_source_domain = $domain;
 	}
 
 	/**
@@ -878,7 +909,7 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 		$post_fields = array (
 //			'name' => 'value',
 			'post_id' => $post_id,
-			'featured' => intval($featured),
+			'featured' => abs($featured),
 			'boundary' => wp_generate_password(24),		// TODO: remove and generate when formatting POST content in _media()
 			'img_path' => dirname($file_path),
 			'img_name' => basename($file_path),
@@ -891,6 +922,10 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 			'attach_name' => (NULL !== $attach_post) ? $attach_post->post_name : '',
 			'attach_alt' => (NULL !== $attach_post) ? $attach_alt : '',
 		);
+		// allow extensions to include data in upload_media operations
+		$post_fields = apply_filters('spectrom_sync_upload_media_fields', $post_fields);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' fields: ' . var_export($post_fields, TRUE));
+
 //$post_fields['content-len'] = strlen($post_fields['contents']);
 //$post_fields['content-type'] = gettype($post_fields['contents']);
 //$post_fields['img-name'] = $file_path;
@@ -936,13 +971,14 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 		case self::ERROR_POST_CONTENT_NOT_FOUND:$error = __('Unable to determine post content.', 'wpsitesynccontent'); break;
 		case self::ERROR_BAD_NONCE:				$error = __('Unable to validate AJAX request.', 'wpsitesynccontent'); break;
 		case self::ERROR_UNRESOLVED_PARENT:		$error = __('Content has a Parent Page that has not been Sync\'d.', 'wpsitesynccontent'); break;
-		case self::ERROR_NO_AUTH_TOKEN:			$error = __('Unable to authentication with Target site. Please re-enter credentials for this site.', 'wpsitesynccontent'); break;
+		case self::ERROR_NO_AUTH_TOKEN:			$error = __('Unable to authenticate with Target site. Please re-enter credentials for this site.', 'wpsitesynccontent'); break;
 		case self::ERROR_NO_PERMISSION:			$error = __('User does not have permission to perform Sync. Check configured user on Target.', 'wpsitesynccontent'); break;
 		case self::ERROR_INVALID_IMG_TYPE:		$error = __('The image uploaded is not a valid image type.', 'wpsitesynccontent'); break;
 		case self::ERROR_POST_NOT_FOUND:		$error = __('Requested post cannot be found.', 'wpsitesynccontent'); break;
 		case self::ERROR_CONTENT_UPDATE_FAILED:	$error = __('Content update on Target failed.', 'wpsitesynccontent'); break;
 		case self::ERROR_CANNOT_WRITE_TOKEN:	$error = __('Cannot write authentication token.', 'wpsitesynccontent'); break;
 		case self::ERROR_UPLOAD_NO_CONTENT:		$error = __('Attachment upload failed. No content found; is there a broken link?', 'wpsitesynccontent'); break;
+		case self::ERROR_PHP_ERROR_ON_TARGET:	$error = __('A PHP error occurred on Target while processing your request. Examine log files for more information.', 'wpsitesynccontent'); break;
 
 		default:
 			$error = apply_filters('spectrom_sync_error_code_to_text', sprintf(__('Unrecognized error: %d', 'wpsitesynccontent'), $code), $code);
@@ -982,12 +1018,21 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 	// TODO: replace with error_code_to_string()
 	public static function get_error($error_code, $error_data = NULL)
 	{
-		$error_code = intval($error_code);
+		$error_code = abs($error_code);
 		$msg = self::error_code_to_string($error_code);
 		if (NULL !== $error_data)
 			$msg = sprintf($msg, $error_data);
 
 		return new WP_Error($error_code, $msg);
+	}
+
+	/**
+	 * Returns the SyncApiResponse instance used to reply to the current API request
+	 * @return SyncApiResponse instance
+	 */
+	public function get_response()
+	{
+		return $this->_response;
 	}
 }
 

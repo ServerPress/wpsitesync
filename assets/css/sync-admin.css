@@ -127,7 +127,7 @@ padding-left: 3px;
 	margin-right: 0.75rem;
 }
 
-#spectrom_sync #sync-message-container #sync-message span.error {
+#spectrom_sync #sync-message-container span.sync-error {
 	color: red;
 }
 

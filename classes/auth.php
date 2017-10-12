@@ -141,10 +141,17 @@ SyncDebug::log(__METHOD__.'() does not have capability: edit_posts');
 		$key = $this->get_key($target);
 //SyncDebug::log(' - key: ' . $key);
 
-		$iv_size = mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
-		$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-		$encrypted = mcrypt_encrypt(MCRYPT_BLOWFISH, $key, utf8_encode($password), MCRYPT_MODE_ECB, $iv);
-		$encoded = base64_encode($encrypted);
+		$left = $right = '';
+		if (function_exists('mcrypt_get_iv_size')) {
+			$iv_size = mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
+			$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
+			$encrypted = mcrypt_encrypt(MCRYPT_BLOWFISH, $key, utf8_encode($password), MCRYPT_MODE_ECB, $iv);
+			$left = base64_encode($encrypted);
+		}
+
+		$right = $this->enc_str($password, $key);
+
+		$encoded = $left . ':' . $right;
 		return $encoded;
 	}
 
@@ -159,16 +166,70 @@ SyncDebug::log(__METHOD__.'() does not have capability: edit_posts');
 //SyncDebug::log(__METHOD__.'()');
 		$key = $this->get_key($target);
 //SyncDebug::log('  key: ' . $key);
-		$decoded = base64_decode($password);
+
+		$left = $password;
+		if (!empty($_POST['encode']))
+			$right = $_POST['encode'];
+
+		$cleartext = NULL;
+		if (function_exists('mcrypt_get_iv_size')) {
+			$decoded = base64_decode($left);
 //SyncDebug::log('  decoded: ' . $decoded);
 
-		$iv_size = mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
-		$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-		$cleartext = mcrypt_decrypt(MCRYPT_BLOWFISH, $key, $decoded, MCRYPT_MODE_ECB, $iv);
+			$iv_size = mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
+			$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
+			$cleartext = mcrypt_decrypt(MCRYPT_BLOWFISH, $key, $decoded, MCRYPT_MODE_ECB, $iv);
 //SyncDebug::log('  cleartext: ' . var_export($cleartext, TRUE));
-		$cleartext = trim($cleartext, "\0");
+			$cleartext = trim($cleartext, "\0");
+//SyncDebug::log(__METHOD__.'() decoded left "' . $left . '" into "' . $cleartext . '"');
+		}
+		if (empty($cleartext) && !empty($right)) {
+			$cleartext = $this->dec_str($right, $key);
+//SyncDebug::log(__METHOD__.'() decoded right "' . $right . '" into "' . $cleartext . '"');
+		}
+
 //SyncDebug::log('  cleartext: ' . var_export($cleartext, TRUE));
 		return $cleartext;
+	}
+
+	/**
+	 * Encrypts a string
+	 * @param type $string
+	 * @param type $key
+	 * @return type
+	 */
+	private function enc_str($string, $key)
+	{
+		$result = '';
+		for ($i = 0; $i < strlen($string); ++$i) {
+			$char = substr($string, $i, 1);
+			$keychar = substr($key, ($i % strlen($key)) - 1, 1);
+			$char = chr(ord($char) + ord($keychar));
+			$result .= $char;
+		}
+
+		return base64_encode($result);
+	}
+
+	/**
+	 * Decrypts a string
+	 * @param type $string
+	 * @param type $key
+	 * @return type
+	 */
+	function dec_str($string, $key)
+	{
+		$result = '';
+		$string = base64_decode($string);
+
+		for ($i = 0; $i < strlen($string); ++$i) {
+			$char = substr($string, $i, 1);
+			$keychar = substr($key, ($i % strlen($key)) - 1, 1);
+			$char = chr(ord($char) - ord($keychar));
+			$result .= $char;
+		}
+
+		return $result;
 	}
 
 	/**

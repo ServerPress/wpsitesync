@@ -21,6 +21,9 @@ function WPSiteSyncContent()
 	this.post_id = null;
 	this.original_value = '';
 	this.nonce = jQuery('#_sync_nonce').val();
+	this.push_xhr = null;
+	this.push_callback = null;					// callback to perform push; returns true to continue processing; false to stop processing
+	this.pull_callback = null;					// callback to perform pull; returns true to continue processing; false to stop processing
 }
 
 
@@ -64,13 +67,17 @@ WPSiteSyncContent.prototype.show_details = function()
  * @param {string} msg The HTML contents of the message to be shown.
  * @param {boolean|null} anim If set to true, display the animation image; otherwise animation will not be shown.
  * @param {boolean|null) dismiss If set to true, will include a dismiss button for the message
+ * @param {string|null} CSS class to add to the message container
  */
-WPSiteSyncContent.prototype.set_message = function(msg, anim, dismiss)
+WPSiteSyncContent.prototype.set_message = function(msg, anim, dismiss, css_class)
 {
 	if (!this.inited)
 		return;
 
-	jQuery('#sync-message').html(msg);
+	jQuery('#sync-message').attr('class', '').html(msg);
+	if ('string' === typeof(css_class))
+		jQuery('#sync-message').addClass(css_class);
+
 	if ('boolean' === typeof(anim) && anim)
 		jQuery('#sync-content-anim').show();
 	else
@@ -109,14 +116,14 @@ WPSiteSyncContent.prototype.clear_message = function()
 };
 
 /**
- * Disables Sync Button every time the content changes. 
+ * Disables Sync Button every time the content changes.
  */
 WPSiteSyncContent.prototype.on_content_change = function()
 {
 	if (this.$content.val() !== this.original_value) {
 		this.disable = true;
 		jQuery('#sync-content').attr('disabled', true);
-		this.set_message(jQuery('#sync-msg-update-changes').html());
+		this.set_message(jQuery('#sync-msg-update-changes').html(), false, false, 'sync-error');
 //		jQuery('#disabled-notice-sync').show();
 	} else {
 		this.disable = false;
@@ -131,22 +138,45 @@ WPSiteSyncContent.prototype.on_content_change = function()
  */
 WPSiteSyncContent.prototype.force_refresh = function()
 {
-	jQuery(window).trigger('resize');
-	jQuery('#sync-message').parent().hide().show(0);
+//	jQuery(window).trigger('resize');
+//	jQuery('#sync-message').parent().hide().show(0);
 };
 
 /**
  * Perfrom WPSiteSync API call
  * @param {string} op The name of the API to call
  * @param {int} post_id The post ID for the API call or null if not applicable
+ * @param {string} msg The message to be set
+ * @param {string} msg_success The success message to be set
+ * @param {object} values Optional values to add to data
  * @returns {undefined}
  */
-WPSiteSyncContent.prototype.api = function(op, post_id, msg, msg_success)
+WPSiteSyncContent.prototype.api = function(op, post_id, msg, msg_success, values)
 {
-console.log('wpsitesync.api() performing "' + op + '" api request... ' + msg);
+//console.log('wpsitesync.api() performing "' + op + '" api request... ' + msg);
 	// Do nothing when in a disabled state
 	if (this.disable || !this.inited)
 		return;
+
+	// add callback checks based on 'op' parameter values ... see .push() example
+	switch (op) {
+	case 'push':
+		// check for a callback function - used to alter the behavior of the Push operation
+		if (null !== this.push_callback) {
+			var res = this.push_callback(post_id);
+			if (!res)							// if the callback returns a false
+				return;							// do not continue processing
+		}
+		break;
+	case 'pull':
+		// check for a callback function - used to alter the behavior of the Pull operation
+		if (null !== this.pull_callback) {
+			var res = this.pull_callback(post_id);
+			if (!res)							// if the callback returns a false
+				return;							// do not continue processing
+		}
+		break;
+	}
 
 	// set the message while API is running
 	this.set_message(msg, true);
@@ -156,11 +186,14 @@ console.log('wpsitesync.api() performing "' + op + '" api request... ' + msg);
 		action: 'spectrom_sync',
 		operation: op,
 		post_id: post_id,
-		_sync_nonce:
-		this.nonce
+		_sync_nonce: this.nonce
 	};
 
-	var push_xhr = {
+	if ('undefined' !== typeof(values)) {
+        _.extend(data, values);
+	}
+
+	this.push_xhr = {
 		type: 'post',
 		async: true, // false,
 		data: data,
@@ -189,14 +222,16 @@ console.log('wpsitesync.api() performing "' + op + '" api request... ' + msg);
 			var msg = '';
 			if ('undefined' !== typeof(response.error_message))
 				wpsitesynccontent.set_message('<span class="error">' + response.error_message + '</span>', false, true);
+			else
+				wpsitesynccontent.set_message('<span class="error">' + jQuery('#sync-runtime-err-msg').html() + '</span>', false, true)
 //			jQuery('#sync-content-anim').hide();
 		}
 	};
 
 	// Allow other plugins to alter the ajax request
-	jQuery(document).trigger('sync_api_call', [op, push_xhr]);
+	jQuery(document).trigger('sync_api_call', [op, this.push_xhr]);
 //console.log('push() calling jQuery.ajax');
-	jQuery.ajax(push_xhr);
+	jQuery.ajax(this.push_xhr);
 //console.log('push() returned from ajax call');
 };
 
@@ -211,17 +246,20 @@ WPSiteSyncContent.prototype.push = function(post_id)
 	if (this.disable || !this.inited)
 		return;
 
-	// clear the message to start things off
-//	jQuery('#sync-message').html('');
-//	jQuery('#sync-message').html(jQuery('#sync-working-msg').html());
-//	jQuery('#sync-content-anim').show();
-//	jQuery('#sync-message').parent().hide().show(0);
+	// check for a callback function - used to alter the behavior of the Push operation
+	if (null !== this.push_callback) {
+		var res = this.push_callback(post_id);
+		if (!res)							// if the callback returns a false
+			return;							// do not continue processing
+	}
+
 	// set message to "working..."
 	this.set_message(jQuery('#sync-msg-working').text(), true);
 
 	this.post_id = post_id;
 	var data = { action: 'spectrom_sync', operation: 'push', post_id: post_id, _sync_nonce: jQuery('#_sync_nonce').val() };
 
+//console.log('push() calling AJAX');
 	var push_xhr = {
 		type: 'post',
 		async: true, // false,
@@ -232,6 +270,7 @@ WPSiteSyncContent.prototype.push = function(post_id)
 //console.log(response);
 			wpsitesynccontent.clear_message();
 			if (response.success) {
+//console.log('push() response.success');
 //				jQuery('#sync-message').text(jQuery('#sync-success-msg').text());
 				wpsitesynccontent.set_message(jQuery('#sync-success-msg').text(), false, true);
 				if ('undefined' !== typeof(response.notice_codes) && response.notice_codes.length > 0) {
@@ -240,9 +279,10 @@ WPSiteSyncContent.prototype.push = function(post_id)
 					}
 				}
 			} else {
+//console.log('push() !response.success');
 				if ('undefined' !== typeof(response.data.message))
 //					jQuery('#sync-message').text(response.data.message);
-					wpsitesynccontent.set_message(response.data.message, false, true);
+					wpsitesynccontent.set_message(response.data.message, false, true, 'sync-error');
 			}
 		},
 		error: function(response) {
@@ -251,6 +291,8 @@ WPSiteSyncContent.prototype.push = function(post_id)
 			var msg = '';
 			if ('undefined' !== typeof(response.error_message))
 				wpsitesynccontent.set_message('<span class="error">' + response.error_message + '</span>', false, true);
+			else
+				wpsitesynccontent.set_message('<span class="error">' + jQuery('#sync-runtime-err-msg').html() + '</span>', false, true)
 //			jQuery('#sync-content-anim').hide();
 		}
 	};
@@ -260,6 +302,24 @@ WPSiteSyncContent.prototype.push = function(post_id)
 //console.log('push() calling jQuery.ajax');
 	jQuery.ajax(push_xhr);
 //console.log('push() returned from ajax call');
+};
+
+/**
+ * Set a callback function to be used to alter behavior of .push() method
+ * @param {function} fn The function to store and use as a callback in .push()
+ */
+WPSiteSyncContent.prototype.set_push_callback = function(fn)
+{
+	this.push_callback = fn;
+};
+
+/**
+ * Set a callback function to be used to alter behavior of .pull() method
+ * @param {function} fn The function to store and use as a callback in .pull()
+ */
+WPSiteSyncContent.prototype.set_pull_callback = function(fn)
+{
+	this.pull_callback = fn;
 };
 
 /**

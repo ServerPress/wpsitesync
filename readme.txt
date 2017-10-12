@@ -3,7 +3,8 @@ Contributors: serverpress, spectromtech, davejesch, Steveorevo
 Donate link: http://wpsitesync.com
 Tags: attachments, content, content sync, data migration, desktopserver, export, import, migrate content, moving data, staging, synchronization, taxonomies
 Requires at least: 3.5
-Tested up to: 4.7
+Requires PHP: 5.3.1
+Tested up to: 4.8.2
 Stable tag: trunk
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -110,6 +111,32 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.3.2 - Oct 12, 2017 =
+* fix: improve checking for sync-specific meta data to be ignored
+* fix: only set user id if available in SyncApiController->push()
+* fix: improved code that recovers from errors displayed within JSON response data
+* fix: set $media_id property during 'upload_media' API calls to media type after create/update of image
+* fix: adjust parameter for wp_get_attachment_image_src()
+* fix: check parameter passed to debug_backtrace() in case of old (< 5.3.6) versions of PHP
+* fix: handle empty post content and featured images correctly (Thanks to Lucas C.)
+* fix: correct taxonomy term lookup on Target to preserve naming (Thanks to Calvin C.)
+* fix: when changing Target or Username configs, require passwords (Thanks to Erin M.)
+* fix: javascript compatibility issue with Visual Composer backend editor (Thanks to Carlos)
+* fix: set taxonmy type for each taxonomy entries when processing hierarchical taxonomies
+* fix: recover and continue from failures of media attachments rather than aborting
+* fix: add Source to Target URL fixups in meta data and excerpt (Thanks to Bryan A.)
+* enhancement: add hook to notify add-ons that images have completed processing
+* enhancement: allow add-ons to modify HTTP post content during 'upload_media' API calls
+* enhancement: allow authentication to check for email address, in addition to user name
+* enhancement: add detection and circumvention of 'Coming Soon' / 'Maintenance Mode' plugins during API calls
+* enhancement: allow add-ons to modify allowed mime types during 'upload_media' API calls
+* enhancement: allow add-ons to modify `content_type` column in sync table
+* enhancement: make display of error messages via UI easier
+* enhancement: add callback to remove data from WPSS tables when content is deleted
+* enhancement: add appropriate headers for AJAX responses
+* enhancement: add 'match-mode' option to allow users to perform new content lookups on target by post title or slug; deprecate SyncApiController::get_post_by_title()
+* enhancement: add fallback encryption when mcrypt is not available
+
 = 1.3.1 - Jan 11, 2017 =
 * Fix: add placeholder file to force creation of languages/ directory.
 * Enhancement: Additional changes in preparation for WPSiteSync for BeaverBuilder.

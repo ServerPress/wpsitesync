@@ -45,6 +45,24 @@ WPSiteSyncContent.prototype.init = function()
 };
 
 /**
+ * Return the value of a GET parameter from the URL
+ * @param {string} name Name of parameter to get
+ * @returns {String} The value of the parameter if found, otherwise null.
+ */
+WPSiteSyncContent.prototype.get_param = function(name)
+{
+	var url = window.location.href;
+	name = name.replace(/[\[\]]/g, "\\$&");
+	var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+		results = regex.exec(url);
+	if (!results)
+		return null;
+	if (!results[2])
+		return '';
+	return decodeURIComponent(results[2].replace(/\+/g, ' '));
+};
+
+/**
  * Callback function to show or hide the contents of the details panel
  */
 WPSiteSyncContent.prototype.show_details = function()
@@ -193,13 +211,14 @@ WPSiteSyncContent.prototype.api = function(op, post_id, msg, msg_success, values
         _.extend(data, values);
 	}
 
+//console.log('api() performing ajax request');
 	this.push_xhr = {
 		type: 'post',
 		async: true, // false,
 		data: data,
 		url: ajaxurl,
 		success: function(response) {
-//console.log('push() success response:');
+//console.log('api() success response:');
 //console.log(response);
 			wpsitesynccontent.clear_message();
 			if (response.success) {
@@ -211,18 +230,26 @@ WPSiteSyncContent.prototype.api = function(op, post_id, msg, msg_success, values
 					}
 				}
 			} else {
-				if ('undefined' !== typeof(response.data.message))
-//					jQuery('#sync-message').text(response.data.message);
-					wpsitesynccontent.set_message(response.data.message, false, true);
+				var more = ' <a href="https://wpsitesync.com/knowledgebase/wpsitesync-error-messages/#error' + response.error_code + '" target="_blank" style="text-decoration:none"><span class="dashicons dashicons-info"></span></a>';
+//console.log(response.data);
+				if ('undefined' !== typeof(response.error_message) && null !== response.error_message) {
+//console.log('found error message in response');
+//					jQuery('#sync-message').text(response.error_message);
+					wpsitesynccontent.set_message(response.error_message + more, false, true);
+				} else {
+//console.log('no error message in response, use default');
+					wpsitesynccontent.set_message(jQuery('#sync-error-msg').text() + more, false, true);
+				}
 			}
 		},
 		error: function(response) {
-//console.log('push() failure response:');
+//console.log('api() failure response:');
 //console.log(response);
 			var msg = '';
-			if ('undefined' !== typeof(response.error_message))
-				wpsitesynccontent.set_message('<span class="error">' + response.error_message + '</span>', false, true);
-			else
+			if ('undefined' !== typeof(response.error_message)) {
+				var more = ' <a href="https://wpsitesync.com/knowledgebase/wpsitesync-error-messages/#error' + response.error_code + '" target="_blank" style="text-decoration:none"><span class="dashicons dashicons-info"></span></a>';
+				wpsitesynccontent.set_message('<span class="error">' + response.error_message + more + '</span>', false, true);
+			} else
 				wpsitesynccontent.set_message('<span class="error">' + jQuery('#sync-runtime-err-msg').html() + '</span>', false, true)
 //			jQuery('#sync-content-anim').hide();
 		}
@@ -230,9 +257,9 @@ WPSiteSyncContent.prototype.api = function(op, post_id, msg, msg_success, values
 
 	// Allow other plugins to alter the ajax request
 	jQuery(document).trigger('sync_api_call', [op, this.push_xhr]);
-//console.log('push() calling jQuery.ajax');
+//console.log('api() calling jQuery.ajax');
 	jQuery.ajax(this.push_xhr);
-//console.log('push() returned from ajax call');
+//console.log('api() returned from ajax call');
 };
 
 /**
@@ -241,6 +268,7 @@ WPSiteSyncContent.prototype.api = function(op, post_id, msg, msg_success, values
  */
 WPSiteSyncContent.prototype.push = function(post_id)
 {
+	// TODO: refactor to use api() method
 //console.log('push()');
 	// Do nothing when in a disabled state
 	if (this.disable || !this.inited)
@@ -280,9 +308,13 @@ WPSiteSyncContent.prototype.push = function(post_id)
 				}
 			} else {
 //console.log('push() !response.success');
-				if ('undefined' !== typeof(response.data.message))
+				var more = ' <a href="https://wpsitesync.com/knowledgebase/wpsitesync-error-messages/#error' + response.error_code + '" target="_blank" style="text-decoration:none"><span class="dashicons dashicons-info"></span></a>';
+				if ('undefined' !== typeof(response.data.message)) {
 //					jQuery('#sync-message').text(response.data.message);
-					wpsitesynccontent.set_message(response.data.message, false, true, 'sync-error');
+					wpsitesynccontent.set_message(response.data.message + more, false, true, 'sync-error');
+				} else {
+					wpsitesynccontent.set_message(jQuery('#sync-error-msg').text() + more, false, true);
+				}
 			}
 		},
 		error: function(response) {

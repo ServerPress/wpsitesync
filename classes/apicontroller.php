@@ -18,6 +18,7 @@ class SyncApiController extends SyncInput implements SyncApiHeaders
 	private $_headers = NULL;						// stores request headers
 	private $_user = NULL;							// authenticated user making request
 	private $_auth = 1;								// perform authentication checks
+	private $_response = NULL;						// reference to SyncApiResponse instance that Controller uses for API responses
 
 	public $source = NULL;							// the URL of the Source site for the request
 	public $source_post_id = 0;						// the post id on the target
@@ -48,6 +49,7 @@ class SyncApiController extends SyncInput implements SyncApiHeaders
 			$response = $args['response'];
 		else
 			$response = new SyncApiResponse(TRUE);
+		$this->_response = $response;
 
 		if (isset($args['site_key']))
 			$response->nosend = TRUE;
@@ -172,6 +174,15 @@ SyncDebug::log(__METHOD__."() sending action '{$action}' to filter 'spectrom_syn
 	}
 
 	/**
+	 * Get the SyncApiResponse object being used by the Controller
+	 * @return SyncApiResponse The response object used for the current API call.
+	 */
+	public function get_api_response()
+	{
+		return $this->_response;
+	}
+
+	/**
 	 * Returns the specified Apache request header
 	 * @param string $name The name of the request header to retrieve
 	 * @return string|NULL The requested header value or NULL if the named header is not found
@@ -249,12 +260,12 @@ SyncDebug::log(' post data: ' . var_export($_POST, TRUE));
 		// TODO: validate post_data contents - need to have post_title, post_id, post_modified and a few others. If not, return SyncApiRequest::ERROR_POST_DATA_INCOMPLETE
 
 		$post_data = $this->post_raw('post_data', array());
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - post_data=' . var_export($post_data, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - post_data=' . var_export($post_data, TRUE));
 
 		$this->source_post_id = abs($post_data['ID']);
 //		if (0 === $this->source_post_id && isset($post_data['post_id']))
 //			$this->source_post_id = abs($post_data['post_id']);
-SyncDebug::log('- syncing post data Source ID#'. $this->source_post_id . ' - "' . $post_data['post_title'] . '"');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' syncing post data Source ID#'. $this->source_post_id . ' - "' . $post_data['post_title'] . '"');
 
 		// Check if a post_id was specified, indicating an update to a previously synced post
 		$target_post_id = $this->post_int('target_post_id', 0);
@@ -306,7 +317,7 @@ SyncDebug::log('- found post: ' . var_export($post, TRUE));
 
 		// do not allow the push if it's not a recognized post type
 		if (!in_array($post_data['post_type']/*$post->post_type*/, apply_filters('spectrom_sync_allowed_post_types', array('post', 'page')))) {
-SyncDebug::log(' - checking post type: ' . $post_data['post_type']/*$post->post_type*/);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking post type: ' . $post_data['post_type']/*$post->post_type*/);
 			$response->error_code(SyncApiRequest::ERROR_INVALID_POST_TYPE);
 			return;
 		}
@@ -942,8 +953,8 @@ SyncDebug::log(__METHOD__ . '() no parent but found term: ' . var_export($term, 
 SyncDebug::log(__METHOD__ . '() found ' . count($child_terms) . ' term children for #' . $parent);
 				if (!is_wp_error($child_terms)) {
 					// loop through the children until we find one that matches
-					foreach ($child_terms as $term_id) {
-						$term_child = get_term_by('id', $term_id, $tax_type);
+					foreach ($child_terms as $child_term_id) {
+						$term_child = get_term_by('id', $child_term_id, $tax_type);
 SyncDebug::log(__METHOD__ . '() term child: ' . $term_child->slug);
 						if ($term_child->slug === $tax_term['slug']) {
 							// found the child term
@@ -976,7 +987,7 @@ SyncDebug::log(__METHOD__ . '() insert term [hier] result: ' . var_export($ret, 
 			} else {
 SyncDebug::log(__METHOD__ . '() found term: ' . var_export($term, TRUE));
 				if (isset($term->term_id)) {
-					$term_id = $term->term_id;
+					$term_id = abs($term->term_id);
 					$parent = $term_id;                            // indicate parent for next loop iteration
 				} else {
 SyncDebug::log(__METHOD__ . '() ERROR: invalid term object');

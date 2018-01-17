@@ -211,11 +211,18 @@ SyncDebug::log(__METHOD__.'() sql=' . $sql . ' returned ' . var_export($ret, TRU
 		// Create an array of data containing references to all information associated with the indicated post ID.
 		$push_data = array();
 
+		// build a list of all the post status values we need to look for #146
+		$stati = get_post_stati();
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' stati: ' . var_export($stati, TRUE));
+		// not looking for auto-draft (won't be edited) and inherit (we want only content not images)
+		$post_stati = array_diff(array_keys($stati), array('auto-draft', 'inherit'));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' stati: ' . var_export($post_stati, TRUE));
+
 		// This will include content from the wp_post table, the wp_postmeta table, as well as information on any registered Favorite Image, or 
 		$args = array(
 			'p' => $post_id,
 			'post_type' => apply_filters('spectrom_sync_allowed_post_types', array('post', 'page')),
-			'post_status' => array('publish', 'pending', 'draft', 'future', 'private', 'trash'),
+			'post_status' => $post_stati, // array('publish', 'pending', 'draft', 'future', 'private', 'trash'),
 			'posts_per_page' => 1,
 		);
 
@@ -357,7 +364,8 @@ SyncDebug::log(__METHOD__.'() post terms: ' . var_export($post_terms, TRUE));
 
 		$taxonomies = $this->get_all_taxonomies(); // get_taxonomies(array(), 'objects');
 		foreach ($taxonomies as $tax_name => $tax) {
-			if (NULL === $post_type || in_array($post_type, $tax->object_type))
+			if (NULL === $post_type ||
+				(is_object($tax) && (NULL !== $tax->object_type && in_array($post_type, $tax->object_type))))
 				$tax_names[] = $tax_name;
 		}
 

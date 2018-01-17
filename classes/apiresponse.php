@@ -70,6 +70,7 @@ if ('error' === $sName) SyncDebug::log(__METHOD__.'() called with data value "er
 	 */
 	public function copy(SyncApiResponse $response)
 	{
+		$this->success = $response->success;
 		$this->error_code = $response->error_code;
 		$this->error_data = $response->error_data;
 		$this->notice_codes = $response->notice_codes;
@@ -267,8 +268,13 @@ SyncDebug::log(__METHOD__.'() ' . var_export($json_data, TRUE));
 	public function __toString()
 	{
 		$aOutput = array('error_code' => $this->error_code);
-		if (0 !== $this->error_code)
-			$aOutput['error_message'] = SyncApiRequest::error_code_to_string($this->error_code);
+		if (0 !== $this->error_code) {
+			$msg = SyncApiRequest::error_code_to_string($this->error_code);
+			if (NULL === $msg)
+				$msg = sprintf(__('Unrecognized error: %d', 'wpsitesynccontent'),
+					$this->error_code);
+			$aOutput['error_message'] = $msg;
+		}
 
 		if (NULL !== $this->error_data)
 			$aOutput['error_data'] = $this->error_data;

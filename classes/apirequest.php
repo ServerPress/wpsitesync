@@ -34,6 +34,7 @@ class SyncApiRequest implements SyncApiHeaders
 	const ERROR_CANNOT_WRITE_TOKEN = 27;
 	const ERROR_UPLOAD_NO_CONTENT = 28;
 	const ERROR_PHP_ERROR_ON_TARGET = 29;
+	const ERROR_SSL_PROTOCOL_ERROR = 30;
 
 	const NOTICE_FILE_EXISTS = 1;
 	const NOTICE_CONTENT_SYNCD = 2;
@@ -94,6 +95,7 @@ SyncDebug::log(__METHOD__.'() action="' . $action . '"');
 				$response->error_code(self::ERROR_BAD_CREDENTIALS, $ret->get_error_message());
 				return $response;
 			}
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' current auth data: ' . var_export($data, TRUE));
 		}
 
 		// TODO: do some sanity checking on $data contents
@@ -105,6 +107,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking action: ' . $action);
 		case 'push':
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling _push()');
 			$data = $this->_push($data);
+			// check return value to ensure Content was found #146
+			if (NULL === $data)
+				$response->error_code(self::ERROR_POST_CONTENT_NOT_FOUND);
 			break;
 		case 'upload_media':
 			$data = apply_filters('spectrom_sync_api_request_media', $data, $action, $remote_args);
@@ -122,9 +127,18 @@ SyncDebug::log(__METHOD__.'() sending action "' . $action . '" to filter \'spect
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($data, TRUE));
 
 		// check value returned from API call
-		if (is_wp_error($data) || $response->has_errors()) {
+###		if (is_wp_error($data) || $response->has_errors()) {
+###			// an error occured somewhere along the way. report it and return
+###//			$response->error_code(abs($res->get_message()));
+###			return $response;
+###		}
+		// check for filter returning a WP_Error instance
+		if (is_wp_error($data)) {
+			$response->error_code(abs($data->get_error_code()));
+		}
+		// check for any errors
+		if ($response->has_errors()) {
 			// an error occured somewhere along the way. report it and return
-//			$response->error_code(abs($res->get_message()));
 			return $response;
 		}
 
@@ -160,7 +174,10 @@ SyncDebug::log('  sending data array: ' . SyncDebug::arr_dump($remote_args));
 		if (is_wp_error($request)) {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error in wp_remote_post(): ' . var_export($request, TRUE));
 			// handle error
-			$response->error_code(self::ERROR_REMOTE_REQUEST_FAILED, $request->get_error_message());
+			if (isset($request->errors['http_request_failed']) && FALSE !== stripos($request->errors['http_request_failed'], 'Unknown SSL protocol error in connection'))
+				$response->error_code(self::ERROR_SSL_PROTOCOL_ERROR, $request->get_error_message());
+			else
+				$response->error_code(self::ERROR_REMOTE_REQUEST_FAILED, $request->get_error_message());
 		} else {
 			$response->result = $request;
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api result from "' . $action . '": ' . var_export($request, TRUE));
@@ -369,7 +386,7 @@ SyncDebug::log(__METHOD__.'() adding "' . $action . '" to queue with ' . var_exp
 	 */
 	private function _get_auth_cookie()
 	{
-SyncDebug::log(__METHOD__.'() user id=' . $this->_user_id);
+//SyncDebug::log(__METHOD__.'() user id=' . $this->_user_id);
 		$this->_auth_cookie = get_user_meta($this->_user_id, 'spectrom_site_cookies', TRUE);
 
 		// TODO: check for error and return WP_Error instance
@@ -493,12 +510,12 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 	 */
 	private function _auth(&$data)
 	{
-//SyncDebug::log(__METHOD__.'() data: ' . var_export($data, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data: ' . var_export($data, TRUE));
 		// TODO: indicate error if target system not set up
 
 		// if no Target credentials provided, get them from the config
 		if (!isset($data['username']) /*|| !isset($data['password'])*/ || !isset($data['host'])) {
-//SyncDebug::log(__METHOD__.'() using credentials from config');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' using credentials from config');
 			$source_model = new SyncSourcesModel();
 			$opts = new SyncOptions();
 			$row = $source_model->find_target($opts->get('host'));
@@ -539,17 +556,17 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 			$this->_target_data['site_key'] = $model->generate_site_key();
 //			return new WP_Error(self::ERROR_MISSING_SITE_KEY);
 		}
-//SyncDebug::log(__METHOD__.'() target username: ' . $this->_target_data['username']);
-//SyncDebug::log(__METHOD__.'() target token: ' . (isset($this->_target_data['token']) ? $this->_target_data['token'] : ''));
-//SyncDebug::log(__METHOD__.'() data token: ' . (isset($data['token']) ? $data['token'] : ''));
-//SyncDebug::log(__METHOD__.'() data password: ' . $data['password']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' target username: ' . $this->_target_data['username']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' target token: ' . (isset($this->_target_data['token']) ? $this->_target_data['token'] : ''));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data token: ' . (isset($data['token']) ? $data['token'] : ''));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data password: ' . $data['password']);
 		if (empty($this->_target_data['username']) ||
 			(empty($this->_target_data['token']) && empty($data['token']) && empty($data['password']))) {
-//SyncDebug::log(__METHOD__.'() return ERROR_BAD_CREDENTIALS');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' return ERROR_BAD_CREDENTIALS');
 			return new WP_Error(self::ERROR_BAD_CREDENTIALS);
 		}
 
-//SyncDebug::log(' ' . __LINE__ . ' - adding authentication data to array');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - adding authentication data to array');
 		// add authentication to the data array
 		$data['auth'] = array(
 			'cookie' => $auth_cookie,
@@ -558,15 +575,16 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 		);
 		// if password provided (first time authentication) then encrypt it
 		if (!empty($data['password'])) {
-//SyncDebug::log(__METHOD__.'() encrypting password');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' encrypting password');
 			$auth = new SyncAuth();
 			$data['password'] = $auth->encode_password($data['password'], $data['host']);
 
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' encoded: ' . $data['password']);
 			$parts = explode(':', $data['password']);
 			$this->_target_data['password'] = $data['password'] = $parts[0];
 			$this->_target_data['encode'] = $data['encode'] = $parts[1];
 		}
-//SyncDebug::log(__METHOD__.'() data: ' . var_export($data, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data: ' . var_export($data, TRUE));
 
 		return NULL;
 	}
@@ -575,7 +593,7 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 	 * Constructs the data associated with a post ID in preparation of a Push operation
 	 * @param int $post_id The post ID for the Content to be Pushed
 	 * @param array $data The data array to add Post Content information to
-	 * @return array The updated data array
+	 * @return array The updated data array or NULL if Content cannot be found
 	 */
 	public function get_push_data($post_id, $data)
 	{
@@ -584,6 +602,8 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post id=' . $post_id);
 		$post_data = $model->build_sync_data($post_id);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post data: ' . var_export($post_data, TRUE));
+		if (0 === count($post_data))
+			return NULL;
 
 		// Check if this is an update of a previously sync'd post
 		// TODO: use a better variable name than $sync_data
@@ -596,7 +616,8 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 		// add generated post data to the content being sent via the API
 		// TODO: swap this around. move the data from $post_data[] into $data[] instead of copy- then set $data['post_data']. This should reduce memory usage
 		// TODO: copy all entries in $post_data array- allows for better API feature/data expansion
-		$data['post_data'] = $post_data['post_data'];
+		if (isset($post_data['post_data']))
+			$data['post_data'] = $post_data['post_data'];
 		if (isset($post_data['post_meta']))
 			$data['post_meta'] = $post_data['post_meta'];
 		if (isset($post_data['taxonomies']))
@@ -724,6 +745,7 @@ SyncDebug::log(__METHOD__.'() id #' . $post_id);
 SyncDebug::log(__METHOD__.'() post thumb id=' . $post_thumbnail_id);
 		$this->_sent_images = array();			// list of images already sent. Used by _send_image() to not send the same image twice
 
+		// TODO: use PHP_URL_HOST parameter
 		$url = parse_url(get_bloginfo('url'));
 		$this->_source_domain = $url['host'];
 
@@ -979,6 +1001,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' fields: ' . var_export($post_fiel
 		case self::ERROR_CANNOT_WRITE_TOKEN:	$error = __('Cannot write authentication token.', 'wpsitesynccontent'); break;
 		case self::ERROR_UPLOAD_NO_CONTENT:		$error = __('Attachment upload failed. No content found; is there a broken link?', 'wpsitesynccontent'); break;
 		case self::ERROR_PHP_ERROR_ON_TARGET:	$error = __('A PHP error occurred on Target while processing your request. Examine log files for more information.', 'wpsitesynccontent'); break;
+		case self::ERROR_SSL_PROTOCOL_ERROR:	$error = __('Unknown SSL protocol error on Target. Check DNS settings on Target domain.', 'wpsitesynccontent'); break;
 
 		default:
 			$error = apply_filters('spectrom_sync_error_code_to_text', sprintf(__('Unrecognized error: %d', 'wpsitesynccontent'), $code), $code);

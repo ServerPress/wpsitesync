@@ -109,7 +109,7 @@ SyncDebug::log(__METHOD__.'() - returning');
 
 			echo '<button id="sync-license-deact-', $args['name'], '" type="button" class="button sync-license sync-license-deactivate" data="', $args['name'], '" ';
 			echo ' onclick="sync_settings.deactivate(this, \'', $args['name'] , '\'); return false;" >';
-			_e('Dectivate', 'wpsitesynccontent');
+			_e('Deactivate', 'wpsitesynccontent');
 			echo '</button>';
 
 			echo '<div id="sync-license-msg-', $args['name'], '" style="display:none" class="sync-license-msg"></div>';

@@ -196,9 +196,9 @@ class SyncSettings extends SyncInput
 	private function _init_general_settings()
 	{
 //SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
-		$option_values = SyncOptions::get_all(); // $this->_options;
+		$data = $option_values = SyncOptions::get_all(); // $this->_options;
 
-		$default_values = apply_filters('spectrom_sync_default_settings',
+/*		$default_values = apply_filters('spectrom_sync_default_settings',
 			// TODO: get this list from the SyncOptions class
 			array(
 				'host' => '',
@@ -214,7 +214,7 @@ class SyncSettings extends SyncInput
 		);
 
 		// Parse option values into predefined keys, throw the rest away.
-		$data = shortcode_atts($default_values, $option_values);
+		$data = shortcode_atts($default_values, $option_values); */
 
 		$section_id = 'sync_section';
 
@@ -308,7 +308,8 @@ class SyncSettings extends SyncInput
 			)
 		);
 
-		switch ($data['match_mode']) {
+		$match_mode = isset($data['match_mode']) ? $data['match_mode'] : 'slug';
+		switch ($match_mode) {
 		case 'slug':		$desc = __('Slug - Search for matching Content on Target by Post Slug.', 'wpsitesynccontent');
 			break;
 		case 'id':			$desc = __('ID - Search for matching Content on Target by Post ID.', 'wpsitesynccontent');
@@ -326,7 +327,7 @@ class SyncSettings extends SyncInput
 			$section_id,									// section id
 			array(											// args
 				'name' => 'match_mode',
-				'value' => $data['match_mode'],
+				'value' => $match_mode,
 				'options' => array(
 					'title' => __('Post Title', 'wpsitesynccontent'),
 					'slug' => __('Post Slug', 'wpsitesynccontent'),
@@ -568,7 +569,7 @@ class SyncSettings extends SyncInput
 				}
 			}
 		}
-//SyncDebug::log(__METHOD__.'()  output array: ' . var_export($out, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . '  output array: ' . var_export($out, TRUE));
 
 		// authenticate if there was a password provided or the host/username are different
 		if ($re_auth && empty($out['password'])) {
@@ -578,19 +579,20 @@ class SyncSettings extends SyncInput
 		if (!empty($out['password']) || $re_auth) {
 			$out['auth'] = 0;
 
-//SyncDebug::log(__METHOD__.'() authenticating with data ' . var_export($out, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authenticating with data ' . var_export($out, TRUE));
 			$api = new SyncApiRequest();
 			$res = $api->api('auth', $out);
 			if (!is_wp_error($res)) {
-//SyncDebug::log(__METHOD__.'()  response from auth request: ' . var_export($res, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . '  response from auth request: ' . var_export($res, TRUE));
 				if (isset($res->response->success) && $res->response->success) {
 					$out['auth'] = 1;
 					$out['target_site_key'] = $res->response->data->site_key;
 //SyncDebug::log(__METHOD__.'() got token: ' . $res->response->data->token);
 				} else {
 					// authentication failure response from Target- report this to user
-//SyncDebug::log(__METHOD__.'() authentication response from Target');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authentication response from Target');
 					$msg = SyncApiRequest::error_code_to_string($res->error_code);
+					$msg .= ' <a href="https://wpsitesync.com/knowledgebase/wpsitesync-error-messages/#error' . $res->error_code . '" target="_blank" style="text-decoration:none"><span class="dashicons dashicons-info"></span></a>';
 					add_settings_error('sync_options_group', 'auth-error',
 						sprintf(__('Error authenticating user on Target: %s', 'wpsitesynccontent'),
 							$msg));

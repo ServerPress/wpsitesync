@@ -7,10 +7,12 @@
 
 class SyncAuth extends SyncInput
 {
-	const HASHING_PASSWORD = TRUE;
+	const HASHING_PASSWORD = TRUE;		// TODO: remove
 
 	// TODO: make this configurable between Source and Target sites so it's harder to break
 	private $salt = 'Cx}@d7M#Q:C;k0GHigDFh&w^ jwIsm@Vc$:oEL+q:(%.iKp?Q*5Axfc[d_f(2#>ZZ^??4g-B|Wd>Q4NyM^;G+R`}S`fnFG?~+cM9<?V9s}UzVzW-t:x]?5)f|~EJ-NLb';
+
+	// TODO: https://github.com/defuse/php-encryption
 
 	/**
 	 * Verifies the login information and creates a nonce to be sent back to the 'Source' that made the request.
@@ -23,8 +25,8 @@ class SyncAuth extends SyncInput
 		$username = $this->post('username', NULL);
 		$password = $this->post('password', NULL);
 		$token = $this->post('token', NULL);
-//SyncDebug::log(__METHOD__.'() user=' . $username . ' pass=' . $password . ' token=' . $token);
-//SyncDebug::log(__METHOD__.'() post= ' . var_export($_POST, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' user=' . $username . ' pass=' . $password . ' token=' . $token);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post= ' . var_export($_POST, TRUE));
 		$source_model = new SyncSourcesModel();
 		$api_controller = SyncApiController::get_instance();
 
@@ -33,13 +35,13 @@ class SyncAuth extends SyncInput
 			$source = $api_controller->source;
 			$site_key = $api_controller->source_site_key;
 
-//SyncDebug::log(__METHOD__.'() authenticating via token');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authenticating via token');
 //SyncDebug::log(' - source: ' . $source . ' site_key: ' . $site_key . ' user: ' . $username . ' token: ' . $token);
 			$user_signon = $source_model->check_auth($source, $site_key, $username, $token);
-//SyncDebug::log(__METHOD__.'() source->check_auth() returned ' . var_export($user_signon, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' source->check_auth() returned ' . var_export($user_signon, TRUE));
 		} else {
 			$info['user_login'] = $username;
-//SyncDebug::log(' - target: ' . get_bloginfo('wpurl'));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - target: ' . get_bloginfo('wpurl'));
 			if (self::HASHING_PASSWORD) {
 				$info['user_password'] = $this->decode_password($password, get_bloginfo('wpurl'));
 			} else {
@@ -50,10 +52,10 @@ class SyncAuth extends SyncInput
 			// this is to get around the block in PeepSo that checks for the referrer
 			$_SERVER['HTTP_REFERER'] = get_bloginfo('wpurl');
 
-//SyncDebug::log(__METHOD__.'() checking credentials: ' . var_export($info, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking credentials: ' . var_export($info, TRUE));
 			// if no credentials provided, don't bother authenticating
 			if (empty($info['user_login']) || empty($info['user_password'])) {
-//SyncDebug::log(__METHOD__.'() missing credentials');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' missing credentials');
 				$resp->success(FALSE);
 				$resp->error_code(SyncApiRequest::ERROR_BAD_CREDENTIALS);
 				return;
@@ -62,18 +64,17 @@ class SyncAuth extends SyncInput
 			$user_signon = wp_signon($info, FALSE);
 		}
 
-//SyncDebug::log(__METHOD__.'() checking login status ' . var_export($user_signon, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking login status ' . var_export($user_signon, TRUE));
 		if (is_wp_error($user_signon)) {
-			$resp->success(FALSE);
-//SyncDebug::log(__METHOD__.'() failed login ' . var_export($user_signon, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' failed login ' . var_export($user_signon, TRUE));
 			// return error message
-			$resp->error_code(SyncApiRequest::ERROR_BAD_CREDENTIALS, $user_signon->get_error_message());
+			$resp->error_code(SyncApiRequest::ERROR_BAD_CREDENTIALS, NULL);
 		} else {
 			// we have a valid user - check additional requirements
 
 			// check capabilities
 			if (!$user_signon->has_cap('edit_posts')) {
-SyncDebug::log(__METHOD__.'() does not have capability: edit_posts');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' does not have capability: edit_posts');
 				$resp->error_code(SyncApiRequest::ERROR_NO_PERMISSION);
 				return;
 			}
@@ -143,15 +144,16 @@ SyncDebug::log(__METHOD__.'() does not have capability: edit_posts');
 
 		$left = $right = '';
 		if (function_exists('mcrypt_get_iv_size')) {
-			$iv_size = mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
-			$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-			$encrypted = mcrypt_encrypt(MCRYPT_BLOWFISH, $key, utf8_encode($password), MCRYPT_MODE_ECB, $iv);
+			$iv_size = @mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
+			$iv = @mcrypt_create_iv($iv_size, MCRYPT_RAND);
+			$encrypted = @mcrypt_encrypt(MCRYPT_BLOWFISH, $key, utf8_encode($password), MCRYPT_MODE_ECB, $iv);
 			$left = base64_encode($encrypted);
 		}
 
 		$right = $this->enc_str($password, $key);
 
 		$encoded = $left . ':' . $right;
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' encoded=[' . $encoded . ']');
 		return $encoded;
 	}
 
@@ -171,17 +173,18 @@ SyncDebug::log(__METHOD__.'() does not have capability: edit_posts');
 		if (!empty($_POST['encode']))
 			$right = $_POST['encode'];
 
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' left=[' . $left . '] right=[' . $right . '] pass=[' . $password . ']');
 		$cleartext = NULL;
-		if (function_exists('mcrypt_get_iv_size')) {
+		if (!empty($left) && function_exists('mcrypt_get_iv_size')) {
 			$decoded = base64_decode($left);
 //SyncDebug::log('  decoded: ' . $decoded);
 
-			$iv_size = mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
-			$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-			$cleartext = mcrypt_decrypt(MCRYPT_BLOWFISH, $key, $decoded, MCRYPT_MODE_ECB, $iv);
+			$iv_size = @mcrypt_get_iv_size(MCRYPT_BLOWFISH, MCRYPT_MODE_ECB);
+			$iv = @mcrypt_create_iv($iv_size, MCRYPT_RAND);
+			$cleartext = @mcrypt_decrypt(MCRYPT_BLOWFISH, $key, $decoded, MCRYPT_MODE_ECB, $iv);
 //SyncDebug::log('  cleartext: ' . var_export($cleartext, TRUE));
 			$cleartext = trim($cleartext, "\0");
-//SyncDebug::log(__METHOD__.'() decoded left "' . $left . '" into "' . $cleartext . '"');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' decoded left "' . $left . '" into "' . $cleartext . '"');
 		}
 		if (empty($cleartext) && !empty($right)) {
 			$cleartext = $this->dec_str($right, $key);

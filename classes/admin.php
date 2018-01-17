@@ -188,6 +188,7 @@ class SyncAdmin
 		if (!class_exists('WPSiteSync_Pull', FALSE))
 				echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Please activate the Pull extension.', 'wpsitesynccontent'), '</div></div>';
 		echo '<div id="sync-runtime-err-msg">', __('A PHP runtime error occured while processing your request. Examine Target log files for more information.', 'wpsitesynccontent'), '</div>';
+		echo '<div id="sync-error-msg">', __('Error: error encountered during request.', 'wpsitesynccontent'), '</div>';
 		echo '</div>';
 
 		echo '</div>'; // #sync-contents
@@ -206,7 +207,7 @@ class SyncAdmin
 	 */
 	public function plugin_action_links($actions)
 	{
-		$actions[] = sprintf('<a href="%1$s">%2$s</a>', admin_url('options-general.php?page=sync' ), __('Settings', 'wpsitesynccontent'));
+		$actions[] = sprintf('<a href="%1$s">%2$s</a>', admin_url('options-general.php?page=sync'), __('Settings', 'wpsitesynccontent'));
 		return $actions;
 	}
 

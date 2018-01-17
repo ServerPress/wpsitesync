@@ -9,7 +9,7 @@
  * @author Pippin Williamson
  * @version 1.6.3
  */
-class EDD_SL_Plugin_Updater {
+class EDD_SL_Plugin_Updater_Sync {
 	private $api_url   = '';
 	private $api_data  = array();
 	private $name      = '';
@@ -71,14 +71,18 @@ class EDD_SL_Plugin_Updater {
 		if( 'plugins.php' == $pagenow && is_multisite() ) {
 			return $_transient_data;
 		}
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' trans data=' . var_export($_transient_data, TRUE));
 		if ( empty( $_transient_data->response ) || empty( $_transient_data->response[ $this->name ] ) ) {
 			$version_info = $this->api_request( 'plugin_latest_version', array( 'slug' => $this->slug ) );
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' version info=' . var_export($version_info, TRUE));
 			if ( false !== $version_info && is_object( $version_info ) && isset( $version_info->new_version ) ) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' left=' . $this->version . ' right=' . $version_info->new_version);
 				if( version_compare( $this->version, $version_info->new_version, '<' ) ) {
 					$_transient_data->response[ $this->name ] = $version_info;
 				}
 				$_transient_data->last_checked = time();
 				$_transient_data->checked[ $this->name ] = $this->version;
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checked:[' . $this->name . ']=' . var_export($_transient_data->checked[$this->name], TRUE));
 			}
 		}
 		return $_transient_data;
@@ -210,6 +214,7 @@ class EDD_SL_Plugin_Updater {
 	 * @return false|object
 	 */
 	private function api_request( $_action, $_data ) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' action=' . $_action, TRUE);
 		global $wp_version;
 		$data = array_merge( $this->api_data, $_data );
 		if ( $data['slug'] != $this->slug ) {
@@ -227,10 +232,25 @@ class EDD_SL_Plugin_Updater {
 			'author'     => $data['author'],
 			'url'        => home_url()
 		);
-		$request = wp_remote_post( $this->api_url, array( 'timeout' => 15, 'sslverify' => false, 'body' => $api_params ) );
-		if ( ! is_wp_error( $request ) ) {
-			$request = json_decode( wp_remote_retrieve_body( $request ) );
+
+#		$request = wp_remote_post( $this->api_url, array( 'timeout' => 15, 'sslverify' => false, 'body' => $api_params ) );
+		$license_api = WPSiteSyncContent::get_instance()->get_license();
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling _call_api()');
+		$res = $license_api->_call_api(NULL, array(
+			'timeout' => 15,
+			'sslverify' => FALSE,
+			'body' => $api_params,
+		), SyncLicensing::MODE_POST);
+#		if ( ! is_wp_error( $request ) ) {
+#			$request = json_decode( wp_remote_retrieve_body( $request ) );
+#		}
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' res=' . ($res ? 'TRUE' : 'FALSE'));
+		if ($res) {
+			$request = $license_api->get_api_result();
+		} else {
+			$request = $license_api->get_api_request();
 		}
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' request=' . var_export($request, TRUE));
 		if ( $request && isset( $request->sections ) ) {
 			$request->sections = maybe_unserialize( $request->sections );
 		} else {
@@ -264,9 +284,20 @@ class EDD_SL_Plugin_Updater {
 				'author'     => $data['author'],
 				'url'        => home_url()
 			);
-			$request = wp_remote_post( $this->api_url, array( 'timeout' => 15, 'sslverify' => false, 'body' => $api_params ) );
-			if ( ! is_wp_error( $request ) ) {
-				$version_info = json_decode( wp_remote_retrieve_body( $request ) );
+#			$request = wp_remote_post( $this->api_url, array( 'timeout' => 15, 'sslverify' => false, 'body' => $api_params ) );
+			$license_api = WPSiteSyncContent::get_instance()->get_license();
+			$res = $license_api->_call_api(NULL, array(
+				'timeout' => 15,
+				'sslverify' => FALSE,
+				'body' => $api_parms,
+			), SyncLicensing::MODE_POST);
+#			if ( ! is_wp_error( $request ) ) {
+#				$version_info = json_decode( wp_remote_retrieve_body( $request ) );
+#			}
+			if ($res) {
+				$version_info = $license_api->get_api_result();
+			} else {
+				$version_info = $license_api->get_api_request();
 			}
 			if ( ! empty( $version_info ) && isset( $version_info->sections ) ) {
 				$version_info->sections = maybe_unserialize( $version_info->sections );

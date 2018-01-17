@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.3.2
+Version: 1.3.3
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,7 +24,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.3.2';
+		const PLUGIN_VERSION = '1.3.3';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
@@ -203,7 +203,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 		public static function check_updates()
 		{
 			// load updater class
-			if (!class_exists('EDD_SL_Plugin_Updater', FALSE)) {
+			if (!class_exists('EDD_SL_Plugin_Updater_Sync', FALSE)) {
 				$file = dirname(__FILE__) . '/install/pluginupdater.php';
 				require_once($file);
 			}
@@ -213,7 +213,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 			// setup the updater instance for each add-on
 			foreach ($update_data['extensions'] as $extension) {
 //SyncDebug::log(__METHOD__.'() creating updater instance for ' . $extension['name']);
-				$edd_updater = new EDD_SL_Plugin_Updater($update_data['store_url'], $extension['file'], array(
+				$edd_updater = new EDD_SL_Plugin_Updater_Sync($update_data['store_url'], $extension['file'], array(
 					'version'	=> $extension['version'],						// current version number
 					'license'	=> $extension['license'],						// license key
 					'item_name'	=> $extension['name'],							// name of this plugin

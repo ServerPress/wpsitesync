@@ -38,8 +38,23 @@ class SyncOptions
 //		}
 
 		// perform fixup / cleanup on option values...migrating from previous configuration settings
-		if (!isset(self::$_options['remove']))
-			self::$_options['remove'] = '0';
+//		if (!isset(self::$_options['remove']))
+//			self::$_options['remove'] = '0';
+		$defaults = array(
+			'host' => '',
+			'username' => '',
+			'password' => '',
+			'site_key' => '',
+			'target_site_key' => '',
+			'auth' => 0,
+			'strict' => '1',
+			'salt' => '',
+			'min_role' => '',
+			'remove' => '0',
+			'match_mode' => 'title',
+		);
+//die('options: ' . var_export(self::$_options, TRUE));
+		self::$_options = array_merge($defaults, self::$_options);
 	}
 
 	/**

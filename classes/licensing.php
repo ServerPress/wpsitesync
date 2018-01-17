@@ -8,7 +8,8 @@ class SyncLicensing
 {
 	const OPTION_NAME = 'spectrom_sync_licensing';
 
-	const LICENSE_API_URL = 'https://wpsitesync.com';
+	const LICENSE_API_URL_PRIMARY = 'https://wpsitesync.com';
+	const LICENSE_API_URL_SECONDARY = 'https://serverpress.com';
 	const LICENSE_TTL = 10800;						# 28800 = 8hrs | 10800 = 3hrs
 
 	const STATE_UNKNOWN = '0';
@@ -17,10 +18,21 @@ class SyncLicensing
 	const STATE_EXPIRED = '3';
 	const STATE_ERROR = '9';
 
+	const MODE_GET = 1;									// for wp_remote_get() calls
+	const MODE_POST = 2;								// for wp_remote_post() calls
+
 	private static $_licenses = NULL;
 	private static $_status = array();
 	private static $_dirty = FALSE;
 	private static $_instance = NULL;
+
+	private $_license_data = NULL;						// results of license API calls
+	private $_license_req = NULL;						// results of wp_remote_() call
+
+	private static $_api_urls = array(					// list of URLs to contact for licensing
+		self::LICENSE_API_URL_PRIMARY,
+		self::LICENSE_API_URL_SECONDARY,
+	);
 
 	public function __construct()
 	{
@@ -30,12 +42,82 @@ class SyncLicensing
 	}
 
 	/**
+	 * Call the Licensing API using the two domains
+	 * @param string $endpoint The path data to attach to the domain
+	 * @param array|NULL $params Parameters to be used for API call
+	 * @param int $mode One of MODE_GET or MODE_POST
+	 * @return boolean TRUE on successful call; otherwise FALSE
+	 */
+	public function _call_api($endpoint, $params = NULL, $mode = self::MODE_GET)
+	{
+		if (NULL === $params)
+			$params = array(
+				'timeout' => 15,
+				'sslverify' => FALSE
+			);
+		$lic = file_exists(dirname(dirname(__FILE__)) . '/license.tmp');
+
+		foreach (self::$_api_urls as $api) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api=' . $api . ' endpoint=' . var_export($endpoint, TRUE));
+			$this->_license_data = NULL;
+			if (NULL !== $endpoint)
+				$api = add_query_arg($endpoint, $api);
+			if (FALSE && $lic)
+				$api = str_replace('//', '//staging.', $api);
+
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling wp_remote_' . (self::MODE_GET == $mode ? 'get' : 'post') . '() on ' . $api . ' with ' . var_export($params, TRUE));
+
+			if (self::MODE_GET === $mode)
+				$res = $this->_license_req = wp_remote_get($api, $params);
+			else
+				$res = $this->_license_req = wp_remote_post($api, $params);
+
+			if (is_wp_error($res)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error: ' . var_export($res, TRUE));
+				continue;
+			}
+
+			$this->_license_data = json_decode(wp_remote_retrieve_body($res));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' decoded: ' . var_export($this->_license_data, TRUE));
+			// check results for get_version
+			if (isset($params['body']['edd_action']) && 'get_version' === $params['body']['edd_action']) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' edd get_version request');
+				return TRUE;
+			}
+			// check results for licensing
+			if (isset($this->_license_data->success) && $this->_license_data->success) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found success marker');
+				return TRUE;
+			}
+			// TODO: is this necessary since it'll continue processing anyway?
+			if (isset($this->_license_data->error) && 'missing' === $this->_license_data->error) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found failure marker');
+				continue;
+			}
+		}
+
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' processed all licensing servers; returning error');
+		return FALSE;
+	}
+
+	public function get_api_result()
+	{
+		return $this->_license_data;
+	}
+	public function get_api_request()
+	{
+		return $this->_license_req;
+	}
+
+	/**
 	 * Returns the URL to use for Licensing API calls
 	 * @return string The License API url
+	 * @deprecated
 	 */
 	private function _get_api_url()
 	{
-		$url = self::LICENSE_API_URL;
+		$url = self::LICENSE_API_URL_PRIMARY;
+SyncDebug::log(__METHOD__.'():' . __LINE__, TRUE);
 		if (file_exists(dirname(dirname(__FILE__)) . '/license.tmp'))
 			$url = str_replace('//', '//staging.', $url);
 		return $url;
@@ -90,10 +172,6 @@ class SyncLicensing
 			return FALSE;
 		}
 
-//		$extensions = SyncExtensionModel::get_extensions();
-//		if (!isset($extensions[$slug]))
-//			return FALSE;
-
 		$call = FALSE;
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' [' . $slug . '] check call status=TRUE');
 		if (isset(self::$_licenses[$slug . '_tr']) && self::$_licenses[$slug . '_tr'] < time()) {
@@ -124,17 +202,24 @@ class SyncLicensing
 				'item_name' => urlencode($name)
 			);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
-			$response = wp_remote_get($remote_url = add_query_arg($api_params, $this->_get_api_url()), array('timeout' => 15, 'sslverify' => FALSE));
-			if (is_wp_error($response)) {
+#			$response = wp_remote_get($remote_url = add_query_arg($api_params, $this->_get_api_url()), array('timeout' => 15, 'sslverify' => FALSE));
+#			if (is_wp_error($response)) {
+#				self::$_status[$slug] = FALSE;
+#//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
+#				return FALSE;
+#			}
+			$res = $this->_call_api($api_params);
+			if (FALSE === $res) {
 				self::$_status[$slug] = FALSE;
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
 				return FALSE;
 			}
 
 			// check response
-			$response_body = wp_remote_retrieve_body($response);
-			if (!empty($response_body)) {
-				$license_data = json_decode($response_body);
+#			$response_body = wp_remote_retrieve_body($response);
+#			if (!empty($response_body)) {
+#				$license_data = json_decode($response_body);
+				$license_data = $this->_license_data;
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' license data=' . var_export($license_data, TRUE));
 				if ('valid' === $license_data->license) {
 					// this license is still valid
@@ -149,9 +234,9 @@ class SyncLicensing
 				}
 				self::$_dirty = TRUE;
 				$this->save_licenses();
-			} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' slug=' . $slug . ' url=' . $remote_url . ' with params: ' . var_export($api_params, TRUE) . ' returned: ' . $response_body);
-			}
+#			} else {
+#SyncDebug::log(__METHOD__.'():' . __LINE__ . ' slug=' . $slug . ' url=' . $remote_url . ' with params: ' . var_export($api_params, TRUE) . ' returned: ' . $response_body);
+#			}
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting dirty flag');
 		}
 
@@ -191,46 +276,52 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' slug=' . $slug . ' url=' . $remot
 	 */
 	public function activate($name)
 	{
-//SyncDebug::log(__METHOD__."('{$name}')");
+SyncDebug::log(__METHOD__."('{$name}')");
 		$this->_load_licenses();
 		if (empty(self::$_licenses[$name])) {
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' license empty');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' license empty');
 			return FALSE;
 		}
 
 		$extensions = SyncExtensionModel::get_extensions(TRUE);
 		if (empty($extensions[$name])) {
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' extension empty');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' extension empty');
 			return FALSE;
 		}
 
 		$license = self::$_licenses[$name];
 		// data to send in our API request
-		$api_params = array( 
-			'edd_action'=> 'activate_license', 
-			'license' 	=> $license, 
+		$api_params = array(
+			'edd_action'=> 'activate_license',
+			'license' 	=> $license,
 			'item_name' => urlencode($extensions[$name]['name']),	// the name of our product in EDD,
 			'url'       => home_url()
 		);
 
 		// Call the licensing API
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
-		$response = wp_remote_post($this->_get_api_url(), array(
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
+#		$response = wp_remote_post($this->_get_api_url(), array(
+#			'timeout'   => 15,
+#			'sslverify' => FALSE,
+#			'body'      => $api_params
+#		));
+		$res = $this->_call_api(NULL, array(
 			'timeout'   => 15,
 			'sslverify' => FALSE,
 			'body'      => $api_params
-		));
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' results=' . var_export($response, TRUE));
+		), self::MODE_POST);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' results=' . var_export($response, TRUE));
 
 		// check for errors
-		if (is_wp_error($response)) {
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
+		if (FALSE === $res) {		// if (is_wp_error($response)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' FALSE');
 			return FALSE;
 		}
 
 		// decode the license data
-		$license_data = json_decode(wp_remote_retrieve_body($response));
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($license_data, TRUE));
+#		$license_data = json_decode(wp_remote_retrieve_body($response));
+		$license_data = $this->_license_data;
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($license_data, TRUE));
 
 /*
 ERROR:
@@ -263,7 +354,7 @@ SUCCESS:
 		$update = FALSE;
 
 		if ($license_data->success) {
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' success');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' success');
 			switch ($license_data->license) {
 			case 'valid':
 				$code = self::$_licenses[$name . '_st'] = self::STATE_ACTIVE;
@@ -294,7 +385,7 @@ SUCCESS:
 		}
 		if ($update) {
 			self::$_dirty = TRUE;
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting dirty');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting dirty');
 			$this->save_licenses();
 		}
 
@@ -307,7 +398,7 @@ SUCCESS:
 	}
 
 	/**
-	 * Retrieves the add-on's version from the EDD API 
+	 * Retrieves the add-on's version from the EDD API
 	 * @param string $slug The slug for the add-on to retrieve version information for
 	 * @param string $name The name of the add-on for version retrieval
 	 * @return string|boolean The version number as a string (allowing for numbers x.x.x) or FALSE if the add-on is not recognized
@@ -335,10 +426,11 @@ SUCCESS:
 			'slug' => $slug,
 		);
 //SyncDebug::log(__METHOD__.'() sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
-		$response = wp_remote_get($this->_get_api_url(), array(
-			'timeout' => 15,
-			'sslverify' => FALSE
-		));
+#		$response = wp_remote_get($this->_get_api_url(), array(
+#			'timeout' => 15,
+#			'sslverify' => FALSE
+#		));
+		$res = $this->_call_api(NULL, $api_params);
 //SyncDebug::log(__METHOD__.'() results=' . var_export($response, TRUE));
 /**
 			'new_version'   => $version,
@@ -357,11 +449,12 @@ SUCCESS:
 			),
  */
 		// check for errors
-		if (is_wp_error($response))
+		if (FALSE === $res) // is_wp_error($response))
 			return FALSE;
 
 		// decode the response
-		$license_data = json_decode(wp_remote_retrieve_body($response));
+#		$license_data = json_decode(wp_remote_retrieve_body($response));
+		$license_data = $this->_license_data;
 //SyncDebug::log(__METHOD__.'() data=' . var_export($license_data, TRUE));
 	}
 
@@ -372,39 +465,49 @@ SUCCESS:
 	 */
 	public function deactivate($name)
 	{
-//SyncDebug::log(__METHOD__."('{$name}')");
+SyncDebug::log(__METHOD__."('{$name}')");
 		$this->_load_licenses();
-		if (empty(self::$_licenses[$name]))
+		if (empty(self::$_licenses[$name])) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' license not found ' . var_export(self::$_licenses, TRUE));
 			return FALSE;
+		}
 
-		$extensions = SyncExtensionModel::get_extensions();
-		if (empty($extensions[$name]))
+		$extensions = SyncExtensionModel::get_extensions(TRUE);
+		if (empty($extensions[$name])) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' extension not found ' . var_export($extensions, TRUE));
 			return FALSE;
+		}
 
 		$license = self::$_licenses[$name];
 		// data to send in our API request
-		$api_params = array( 
-			'edd_action'=> 'deactivate_license', 
-			'license' 	=> $license, 
+		$api_params = array(
+			'edd_action'=> 'deactivate_license',
+			'license' 	=> $license,
 			'item_name' => urlencode($extensions[$name]['name']),	// the name of our product in EDD,
 		);
 
 		// Call the licensing API
-//SyncDebug::log(__METHOD__.'() sending ' . var_export($api_params, TRUE) . ' to ' . $this->_get_api_url());
-		$response = wp_remote_post($this->_get_api_url(), array(
+SyncDebug::log(__METHOD__.'() sending ' . var_export($api_params, TRUE));
+#		$response = wp_remote_post($this->_get_api_url(), array(
+#			'timeout'   => 15,
+#			'sslverify' => FALSE,
+#			'body'      => $api_params
+#		));
+		$res = $this->_call_api(NULL, array(
 			'timeout'   => 15,
 			'sslverify' => FALSE,
 			'body'      => $api_params
-		));
+		), self::MODE_POST);
 //SyncDebug::log(__METHOD__.'() results=' . var_export($response, TRUE));
 
 		// check for errors
-		if (is_wp_error($response))
+		if (FALSE === $res) // is_wp_error($response))
 			return FALSE;
 
 		// decode the license data
-		$license_data = json_decode(wp_remote_retrieve_body($response));
-//SyncDebug::log(__METHOD__.'() data=' . var_export($license_data, TRUE));
+#		$license_data = json_decode(wp_remote_retrieve_body($response));
+		$license_data = $this->_license_data;
+SyncDebug::log(__METHOD__.'() data=' . var_export($license_data, TRUE));
 
 /*
 ERROR:
@@ -467,7 +570,7 @@ SUCCESS:
 //$ex = new Exception();
 //SyncDebug::log(__METHOD__.'() trace=' . $ex->getTraceAsString());
 			$modified = FALSE;
-			$extensions = SyncExtensionModel::get_extensions();
+			$extensions = SyncExtensionModel::get_extensions(TRUE);
 			foreach ($extensions as $key => $extension) {
 				if (!isset(self::$_licenses[$key])) {
 					self::$_licenses[$key] = '';

@@ -90,11 +90,13 @@ SyncDebug::log(__METHOD__.'() sql=' . $sql);
 			(isset($data['site_key']) ? $data['site_key'] : NULL),
 			$data['content_type']);
 
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($data, TRUE));
 		if (NULL !== $sync_data) {
-SyncDebug::log(__METHOD__.'() updating ' . $data['source_content_id']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' read: ' . var_export($sync_data, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updating ' . $data['source_content_id']);
 			$wpdb->update($this->_sync_table, $data, array('sync_id' => $sync_data->sync_id));
 		} else {
-SyncDebug::log(__METHOD__.'() inserting ' . $data['source_content_id']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' inserting ' . $data['source_content_id']);
 			$res = $wpdb->insert($this->_sync_table, $data);
 			// TODO: when insert fails, display error message/recover
 //SyncDebug::log(__METHOD__.'() res=' . var_export($res, TRUE));
@@ -108,9 +110,10 @@ SyncDebug::log(__METHOD__.'() inserting ' . $data['source_content_id']);
 	 * @param int $source_id The post ID coming from the Source site
 	 * @param string $site_key The site_key associated with the sync operation
 	 * @param string $type The content type being searched, defaults to 'post'
+	 * @param boolean $assoc TRUE to associate Target ID to the wp_post table; otherwise FALSE
 	 * @return mixed Returns NULL if no result is found, else an object
 	 */
-	public function get_sync_data($source_id, $site_key = NULL, $type = 'post')
+	public function get_sync_data($source_id, $site_key = NULL, $type = 'post', $assoc = FALSE)
 	{
 		global $wpdb;
 
@@ -123,8 +126,14 @@ SyncDebug::log(__METHOD__.'() inserting ' . $data['source_content_id']);
 			$where = " AND `content_type`='{$type}' ";
 		}
 
+		$join = $where = '';
+		if ($assoc) {
+			$join = " LEFT JOIN `{$wpdb->posts}` ON `{$wpdb->posts}`.`ID`=`target_content_id` ";
+			$where = " AND `{$wpdb->posts}`.`ID` IS NOT NULL ";
+		}
 		$query = "SELECT *
 				FROM `{$this->_sync_table}`
+				{$join}
 				WHERE `source_content_id`=%d AND `site_key`=%s {$where}
 				LIMIT 1";
 $sql = $wpdb->prepare($query, $source_id, $site_key);
@@ -267,12 +276,7 @@ SyncDebug::log(__METHOD__.'() post id=' . $post_id);
 		$post_thumbnail_id = get_post_thumbnail_id($post_id);
 		$push_data['thumbnail'] = $post_thumbnail_id;
 
-		// use filter to add additional information to the data array
-		// Note: this has been moved to SyncApiRequest::api()
-//		$push_data = apply_filters('spectrom_sync_api_request', $push_data, $request_type, $request_type);
-// send the data array through a filter using: apply_filters(‘spectrom_sync_push_data’, $array, $postid);
-// this filter allows future add-ons to modify the contents of the array before it is sent to the Target site.
-
+		// Note: the data is sent through a 'spectrom_sync_api_request filter before being sent through the API
 		return $push_data;
 	}
 

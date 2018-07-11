@@ -2,7 +2,6 @@
 
 /**
  * Routes incoming calls to the API.
- *
  * @package Sync
  */
 class SyncApiController extends SyncInput implements SyncApiHeaders
@@ -19,6 +18,8 @@ class SyncApiController extends SyncInput implements SyncApiHeaders
 	private $_user = NULL;							// authenticated user making request
 	private $_auth = 1;								// perform authentication checks
 	private $_response = NULL;						// reference to SyncApiResponse instance that Controller uses for API responses
+	private $_source_urls = NULL;					// list of Source URLs for domain transposition
+	private $_target_urls = NULL;					// list of Target URLs for domain transposition
 
 	public $source = NULL;							// the URL of the Source site for the request
 	public $source_post_id = 0;						// the post id on the target
@@ -67,8 +68,6 @@ SyncDebug::log(__METHOD__.'() - verifying nonce');
 SyncDebug::log(__METHOD__.'() failed nonce check ' . __LINE__);
 SyncDebug::log(' sync_nonce=' . $this->get('_spectrom_sync_nonce') . '  site_key=' . $this->get('site_key'));
 			$response->error_code(SyncApiRequest::ERROR_SESSION_EXPIRED);
-//			$response->success(FALSE);
-//			$response->error_code(SyncApiRequest::ERROR_SESSION_EXPIRED);
 			$response->send();		// calls die()
 		}
 
@@ -183,6 +182,28 @@ SyncDebug::log(__METHOD__."() sending action '{$action}' to filter 'spectrom_syn
 	}
 
 	/**
+	 * Generate arrays of replacement strings allowing domain fixups for SSL and non-SSL source references.
+	 * These arrays can be used in str_replace() calls when fixing Source domains to Target domains
+	 * @param array $source_urls Variable to assign array of search arrays
+	 * @param array $target_urls Variable to assign array of replacement array
+	 */
+	public function get_fixup_domains(&$source_urls, &$target_urls)
+	{
+		$source_urls = array($this->source);
+		if ('http' === parse_url($this->source, PHP_URL_SCHEME))
+			$source_urls[] = str_ireplace('http://', 'https://', $this->source);
+		else
+			$source_urls[] = str_ireplace('https://', 'http://', $this->source);
+		$source_urls[] = urlencode($source_urls[0]);			// add url encoded references #156
+		$source_urls[] = urlencode($source_urls[1]);
+
+		$target_url = untrailingslashit(site_url());
+		$target_urls = array($target_url, $target_url);
+		$target_urls[] = urlencode($target_urls[0]);			// add url encoded references #156
+		$target_urls[] = urlencode($target_urls[0]);
+	}
+
+	/**
 	 * Returns the specified Apache request header
 	 * @param string $name The name of the request header to retrieve
 	 * @return string|NULL The requested header value or NULL if the named header is not found
@@ -263,8 +284,6 @@ SyncDebug::log(' post data: ' . var_export($_POST, TRUE));
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - post_data=' . var_export($post_data, TRUE));
 
 		$this->source_post_id = abs($post_data['ID']);
-//		if (0 === $this->source_post_id && isset($post_data['post_id']))
-//			$this->source_post_id = abs($post_data['post_id']);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' syncing post data Source ID#'. $this->source_post_id . ' - "' . $post_data['post_title'] . '"');
 
 		// Check if a post_id was specified, indicating an update to a previously synced post
@@ -316,10 +335,10 @@ SyncDebug::log('- found post: ' . var_export($post, TRUE));
 
 
 		// do not allow the push if it's not a recognized post type
-		if (!in_array($post_data['post_type']/*$post->post_type*/, apply_filters('spectrom_sync_allowed_post_types', array('post', 'page')))) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking post type: ' . $post_data['post_type']/*$post->post_type*/);
-			$response->error_code(SyncApiRequest::ERROR_INVALID_POST_TYPE);
-			return;
+		if (!in_array($post_data['post_type'], apply_filters('spectrom_sync_allowed_post_types', array('post', 'page')))) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking post type: ' . $post_data['post_type']);
+#			$response->error_code(SyncApiRequest::ERROR_INVALID_POST_TYPE);
+#			return;
 		}
 
 		// check parent page- don't allow if parent doesn't exist
@@ -338,10 +357,12 @@ SyncDebug::log(__METHOD__.'() setting parent post to #' . $parent_post->target_c
 			$post_data['post_parent'] = abs($parent_post->target_content_id);
 		}
 
-		// change references to source URL to target URL
-		$post_data['post_content'] = str_replace($this->source, site_url(), $post_data['post_content']);
-		$post_data['post_excerpt'] = str_replace($this->source, site_url(), $post_data['post_excerpt']);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' converting URLs ' . $this->source . ' -> ' . site_url());
+		// change references to the Source URL to Target URL
+		$this->get_fixup_domains($this->_source_urls, $this->_target_urls);
+		// now change all occurances of Source domain(s) to Target domain
+		$post_data['post_content'] = str_ireplace($this->_source_urls, $this->_target_urls, $post_data['post_content']);
+		$post_data['post_excerpt'] = str_ireplace($this->_source_urls, $this->_target_urls, $post_data['post_excerpt']);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' converting URLs (' . implode(',', $this->_source_urls) . ') -> ' . $this->_target_urls[0]);
 //		$post_data['post_content'] = str_replace($this->post('origin'), $url['host'], $post_data['post_content']);
 		// TODO: check if we need to update anything else like `guid`, `post_content_filtered`
 
@@ -351,11 +372,14 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' converting URLs ' . $this->source
 
 		// add/update post
 		if (NULL !== $post) {
-SyncDebug::log(' ' . __LINE__ . ' - check permission for updating post id#' . $post->ID);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' check permission for updating post id#' . $post->ID);
 			// make sure the user performing API request has permission to perform the action
+			// TODO: use 'edit_post' instead? since we're specifying post ID
 			if ($this->has_permission('edit_posts', $post->ID)) {
 //SyncDebug::log(' - has permission');
 				$target_post_id = $post_data['ID'] = $post->ID;
+				$this->_process_gutenberg($post_data);							// handle Gutenberg content
+				unset($post_data['guid']);
 				$res = wp_update_post($post_data, TRUE); // ;here;
 				if (is_wp_error($res)) {
 					$response->error_code(SyncApiRequest::ERROR_CONTENT_UPDATE_FAILED, $res->get_error_message());
@@ -365,17 +389,21 @@ SyncDebug::log(' ' . __LINE__ . ' - check permission for updating post id#' . $p
 				$response->send();
 			}
 		} else {
-SyncDebug::log(' - check permission for creating new post from source id#' . $post_data['ID']);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' check permission for creating new post from source id#' . $post_data['ID']);
 			if ($this->has_permission('edit_posts')) {
 				// copy to new array so ID can be unset
+				$this->_process_gutenberg($post_data);							// handle Gutenberg content
 				$new_post_data = $post_data;
 				unset($new_post_data['ID']);
+				unset($new_post_data['guid']);
 				$target_post_id = wp_insert_post($new_post_data); // ;here;
 			} else {
 				$response->error_code(SyncApiRequest::ERROR_NO_PERMISSION);
 				$response->send();
 			}
 		}
+		// Note: from this point on, we know that we have permission to add/update the content
+
 		$this->post_id = $target_post_id;
 SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 
@@ -422,6 +450,7 @@ SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 		// TOOD: probably better to remove all postmeta, then add_post_meta() for each item found
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' handling meta data');
 		$ser = NULL;
+		// TODO: move postmeta processing into _process_postmeta() method
 		foreach ($post_meta as $meta_key => $meta_value) {
 			foreach ($meta_value as $value) // loop through meta_value array
 //$_v = $value;
@@ -431,17 +460,16 @@ SyncDebug::log(__METHOD__ . '():' . __LINE__. '  performing sync');
 //$_v = maybe_unserialize($_v);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' new value=' . var_export($_v, TRUE));
 				// change Source URL references to Target URL references in meta data
-				$temp_val = maybe_unserialize(stripslashes ($value));
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' meta key: "' . $meta_key . '" meta data: ' . $value);
-//SyncDebug::log(' -- ' . var_export($temp_val, TRUE));
-				if (is_array($temp_val)) {
+				$value = stripslashes($value);
+				if (is_serialized($value)) {
 					if (NULL === $ser)
 						$ser = new SyncSerialize();
-					$fix_data = str_replace($this->source, site_url(), $value);
+///					$fix_data = str_replace($this->source, site_url(), $value);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' fix data: ' . $fix_data);
-					$fix_data = $ser->fix_serialized_data($fix_data);
+///					$fix_data = $ser->fix_serialized_data($fix_data);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' fixing serialized data: ' . $fix_data);
-					$value = $fix_data;
+					$value = $ser->parse_data($value, array($this, 'fixup_url_references'));
 				} else {
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not fixing serialized data');
 					$value = str_replace($this->source, site_url(), $value);
@@ -463,6 +491,104 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' handling taxonomies');
 		// let the CPT add-on know that there may be additional taxonomies to update
 SyncDebug::log(__METHOD__.'():'.__LINE__ . " calling action 'spectrom_sync_push_content'");
 		do_action('spectrom_sync_push_content', $target_post_id, $post_data, $response);
+	}
+
+	/**
+	 * Handles references to Gutenberg Shared Blocks and fixes ID references to use Target IDs.
+	 * @param array $post_data Content from the Source that is being Pushed.
+	 */
+	private function _process_gutenberg(&$post_data)
+	{
+SyncDebug::log(__METHOD__.'():' . __LINE__);
+		// https://premium.wpmudev.org/blog/a-tour-of-the-gutenberg-editor-for-wordpress/
+
+		// look for shareable block in the format of:
+		// <!-- wp:block {"ref":23} /-->
+		$content = stripslashes($post_data['post_content']);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' processing ' . strlen($content) . ' bytes of content');
+		$sync_model = new SyncModel();				// this will be needed during processing
+		$offset = 0;
+		$len = strlen($content);
+		do {
+			$pos = strpos($content, '<!-- wp:block', $offset);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found Shared Block marker at offset ' . $pos);
+			if (FALSE !== $pos) {
+				// find start and end points of the json data within the block marker
+				$start = $pos + 14;
+				$end = strpos($content, '/-->', $start);
+				$ref_id = 0;
+				if (FALSE !== $end) {
+					// convert json data into an object
+					$end -= 2;
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found end marker at ' . $end);
+					// $start and $end now point to the braces containing the json data
+
+					// Convert data to json object. This method is (hopefully) forward compatible so that
+					// when/if additional data is added to the object we won't destroy it or not be able to
+					// find what we're looking for.
+					$json = substr($content, $start, $end - $start + 1);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found json data: "' . $json . '"');
+					$obj = json_decode($json);
+					if (NULL !== $obj && isset($obj->ref)) {
+						$source_post_id = abs($obj->ref);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found shared block reference: ' . $source_post_id . ' at pos ' . ($pos + 21));
+						if (0 !== $source_post_id) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found reference to post id ' . $source_post_id);
+							// look up source post ID to see what the Target ID is
+							$sync_data = $sync_model->get_sync_data($source_post_id, $this->source_site_key);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found sync data: ' . var_export($sync_data, TRUE));
+							if (NULL === $sync_data) {
+								// no post found, need to create it
+								$target_data = $_POST['gutenberg'][$source_post_id];
+								unset($target_data['ID']);					// remove the post ID
+								unset($target_data['guid']);				// remove guid
+								$target_ref = wp_insert_post($target_data);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' have target post ID ' . $target_ref);
+								if (is_wp_error($target_ref)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error on Shared Block creation: ' . $target_ref->getMessage());
+									$target_ref = 0;
+									// TODO: determine if there is a way to recover
+								} else {
+									// create an entry in the spectrom_sync table for later reference
+									$sync_data = array(
+										'site_key' => $this->source_site_key,
+										'source_content_id' => $source_post_id,
+										'target_content_id' => $target_ref,			// ID of recently created entry for Shared Block
+										'content_type' => 'post',					// it's in the wp_posts table
+										'target_site_key' => SyncOptions::get('site_key'),
+									);
+									$sync_model->save_sync_data($sync_data);
+								}
+							} else {
+								// found an entry for source post ID, use the previously saved Target ID
+								$target_ref = $sync_data->target_content_id;
+							}
+							// update post ID reference with Target's ID then update Gutenberg Shared Block marker
+							$obj->ref = $target_ref;
+							$new_obj_data = json_encode($obj);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' injecting new Gutenberg Shared Block object: "' . $new_obj_data . '" into content');
+							$content = substr($content, 0, $start) . $new_obj_data . substr($content, $end + 1);
+						} // 0 !== $source_post_id
+					} // NULL !== $obj
+					//	'<!-- wp_block'		(json data length)   ' /-->'
+					$offset += $pos + 14 + ($end - $start + 1) + 5;		// move offset past end of wp:block comment
+				} // FALSE !== $end
+			} else { // FALSE !== $pos
+				$offset = $len + 1;
+			}
+			
+		} while ($offset < $len);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updating content: ' . $content);
+		$post_data['post_content'] = $content;
+	}
+
+	/**
+	 * Callback for SyncSerialize->parse_data() when parsing the serialized data. Change old Source domain to Target domain.
+	 * @param SyncSerializeEntry $entry The data representing the current node processed by Serialization parser.
+	 */
+	public function fixup_url_references($entry)
+	{
+		$entry->content = str_ireplace($this->_source_urls, $this->_target_urls, $entry->content);
 	}
 
 	/**
@@ -504,6 +630,17 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - post=' . var_export($_POST, TRU
 			'modified' => $post_data->post_modified_gmt,
 			'content' => substr(strip_tags($post_data->post_content), 0, 120), // strip_tags(get_the_excerpt($target_post_id)),
 		);
+
+		// featured image info
+		$feat_img = get_post_thumbnail_id($target_post_id);
+		if (!empty($feat_img)) {
+			$img_info = wp_get_attachment_image_src($feat_img, 'full');
+			if (!empty($img_info)) {
+				$path = parse_url($img_info[0], PHP_URL_PATH);
+				$data['feat_img'] = '#' . $feat_img . ' ' . substr($path, strrpos($path, '/') + 1);
+			}
+		}
+
 		$data = apply_filters('spectrom_sync_get_info_data', $data, $target_post_id);
 
 		// move data from filtered array into response object
@@ -641,33 +778,6 @@ SyncDebug::log(__METHOD__.'() ** removing term #' . $post_term->term_id . ' ' . 
 	}
 
 	/**
-	 * Returns a post object for a given post title
-	 * @param string $title The post_title value to search for
-	 * @return WP_Post|NULL The WP_Post object if the title is found; otherwise NULL.
-	 */
-	// TODO: move this to a model class - doesn't belong in a controller class
-/*	private function get_post_by_title($title)
-	{
-		global $wpdb;
-
-		$sql = "SELECT `ID`
-				FROM `{$wpdb->posts}`
-				WHERE `post_title`=%s
-				LIMIT 1";
-		$res = $wpdb->get_results($wpdb->prepare($sql, $title), OBJECT);
-SyncDebug::log(__METHOD__.'() ' . $wpdb->last_query . ': ' . var_export($res, TRUE));
-
-		if (1 == count($res)) {
-			$post_id = $res[0]->ID;
-SyncDebug::log('- post id=' . $post_id);
-			$post = get_post($post_id, OBJECT);
-
-			return $post;
-		}
-		return NULL;
-	} */
-
-	/**
 	 * Handles media uploads. Assigns attachment to posts.
 	 * @param  SyncApiResponse $response
 	 */
@@ -680,6 +790,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' max upload size=' . wp_max_upload
 			$response->send();
 		}
 
+		// TODO: check if already loaded
 		require_once(ABSPATH . 'wp-admin/includes/image.php');
 		require_once(ABSPATH . 'wp-admin/includes/file.php');
 		require_once(ABSPATH . 'wp-admin/includes/media.php');
@@ -702,7 +813,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no file upload information provid
 		$img_type = wp_check_filetype($path);
 		// TODO: add validating method to SyncAttachModel class
 		add_filter('spectrom_sync_upload_media_allowed_mime_type', array($this, 'filter_allowed_mime_types'), 10, 2);
-SyncDebug::log(__METHOD__.'() found image type=' . $img_type['ext'] . '=' . $img_type['type']);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found image type=' . $img_type['ext'] . '=' . $img_type['type']);
 		if (FALSE === apply_filters('spectrom_sync_upload_media_allowed_mime_type', FALSE, $img_type)) {
 			$response->error_code(SyncApiRequest::ERROR_INVALID_IMG_TYPE);
 			$response->send();
@@ -732,7 +843,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' id=' . $attachment_id . ' sql=' .
 		$response->success(TRUE);
 
 		// convert source post id to target post id
-		$source_post_id = abs($_POST['post_id']);
+		$source_post_id = abs($this->post_int('post_id'));
 		$target_post_id = 0;
 		$model = new SyncModel();
 		$content_type = apply_filters('spectrom_sync_upload_media_content_type', 'post');
@@ -743,20 +854,20 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' source id=' . $source_post_id . '
 
 		$this->media_id = 0;
 		$this->local_media_name = '';
-		add_filter('wp_handle_upload', array(&$this, 'handle_upload'));
+		add_filter('wp_handle_upload', array($this, 'handle_upload'));
 		$has_error = FALSE;
 
 		// set this up for wp_handle_upload() calls
 		$overrides = array(
 			'test_form' => FALSE,			// really needed because we're not submitting via a form
 			'test_size' => FALSE,			// don't worry about the size
-			'unique_filename_callback' => array(&$this, 'unique_filename_callback'),
+			'unique_filename_callback' => array($this, 'unique_filename_callback'),
 			'action' => 'wp_handle_upload',
 		);
 
 		// Check if attachment exists
 		if (0 !== $attachment_id) { // $get_posts->post_count > 0) { // NULL !== $get_posts->posts[0]) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found id ' . $attachment_id . ' posts');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found attachment id ' . $attachment_id . ' posts');
 			// TODO: check if files need to be updated / replaced / deleted
 			// TODO: handle overwriting/replacing image files of the same name
 //			$file = media_handle_upload('sync_file_upload', $this->post('post_id', 0), array(), $overrides);
@@ -768,7 +879,25 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found id ' . $attachment_id . ' p
 				set_post_thumbnail($target_post_id, $attachment_id);
 		} else {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found no posts');
-			$time = str_replace('\\', '/', substr($_POST['img_path'], -7));
+			// setup '$time' value based on Source location, data or Target's post_date
+			if ('uploads' === substr($_POST['img_path'], -7)) {
+				// no subdirectories specified on Source, continue this on Target
+				$time = '/';
+			} else if (isset($_POST['img_year']) && isset($_POST['img_month'])) {
+				// use POST values for year and month determination, if provided #158
+				$time = str_pad($_POST['img_year'], 4, '0', STR_PAD_LEFT) . '/' . str_pad($_POST['img_month'], 2, '0', STR_PAD_LEFT);
+			} else {
+				$time = str_replace('\\', '/', substr($_POST['img_path'], -7));
+				// if the year/month values were not provided or they're not digits, fix time value
+				if (1 !== preg_match('/^([0-9]{4})\/([0-9]{2})$/', $time)) {
+					$target_post = get_post($target_post_id);
+					if (NULL === $target_post)
+						$time = date('Y/m');		// use today's year/month for the time since we don't know the original date
+					else
+						// use Target post's post_date
+						$time = substr($target_post->post_date, 0, 4) . '/' . substr($target_post->post_date, 5, 2);
+				}
+			}
 SyncDebug::log(__METHOD__.'() time=' . $time);
 			$_POST['action'] = 'wp_handle_upload';		// shouldn't have to do this with $overrides['test_form'] = FALSE
 //			$file = media_handle_upload('sync_file_upload', $this->post('post_id', 0), $time);
@@ -776,10 +905,8 @@ SyncDebug::log(__METHOD__.'() time=' . $time);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' media_handle_upload() returned ' . var_export($file, TRUE));
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' wp_handle_upload() returned ' . var_export($file, TRUE));
 
-//			if (is_wp_error($file)) {
 			if (!is_array($file) || isset($file['error'])) {
 				$has_error = TRUE;
-//				$response->error_code(SyncApiRequest::ERROR_FILE_UPLOAD, $file->get_error_message());
 				$response->error_code(SyncApiRequest::ERROR_FILE_UPLOAD, $file['error']);
 			} else {
 				$upload_dir = wp_upload_dir();
@@ -815,8 +942,8 @@ SyncDebug::log(__METHOD__."() set_post_thumbnail({$target_post_id}, {$attach_id}
 		}
 
 		if (!$has_error) {
-SyncDebug::log(__METHOD__.'() image successfully handled');
-			// Set this post as featured image, if specified.
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image successfully handled');
+			// set this post as featured image, if specified.
 			if ($this->post('featured', 0))
 				set_post_thumbnail($target_post_id /*$this->post('post_id')*/, $this->media_id);
 
@@ -829,6 +956,17 @@ SyncDebug::log(__METHOD__.'() image successfully handled');
 
 			$media = new SyncMediaModel();
 			$media->log($media_data);
+
+			// save to the sync table for later reference
+			$sync_data = array(
+				'site_key' => $this->source_site_key,
+				'source_content_id' => abs($this->post_int('attach_id')),
+				'target_content_id' => $attachment_id,
+				'content_type' => $content_type,
+				'target_site_key' => SyncOptions::get('site_key'),
+			);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' save reference for source media id=' . $sync_data['source_content_id'] . ' target media id=' . $attachment_id);
+			$model->save_sync_data($sync_data);
 
 			// notify add-ons about media
 			do_action('spectrom_sync_media_processed', $target_post_id, $attachment_id, $this->media_id);
@@ -864,7 +1002,7 @@ SyncDebug::log(__METHOD__.'() image successfully handled');
 	 */
 	public function unique_filename_callback($dir, $name, $ext)
 	{
-SyncDebug::log(__METHOD__."('{$dir}', '{$name}', '{$ext}')");
+//SyncDebug::log(__METHOD__."('{$dir}', '{$name}', '{$ext}')");
 		if (FALSE !== stripos($name, $ext)) {
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' returning "' . $name . '"');
 			return $name;
@@ -872,18 +1010,6 @@ SyncDebug::log(__METHOD__."('{$dir}', '{$name}', '{$ext}')");
 		// this forces re-use of uploaded image names #54
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' returning "' . $name . $ext . '"');
 		return $name . $ext;
-		$filename = $name . $ext;
-
-//		$model = new SyncModel();
-//		if ($media = $model->get_media_data($filename)) {
-		$model = new SyncMediaModel();
-		// TODO: I think this needs the Source site's `site_key` value
-		if ($media = $model->get_data($filename)) {
-			$this->media_id = $media->id;
-			$filename = $media->local_media_name;
-		}
-
-		return $filename;
 	}
 
 	/**

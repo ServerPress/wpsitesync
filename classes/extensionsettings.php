@@ -3,20 +3,15 @@
 class SyncExtensionSettings
 {
 	const FEED_URL = 'https://wpsitesync.com/downloads/feed/';
+	const CONTENT_URL = 'https://serverpress.com/wp-content/uploads/';
 	const TRANSIENT_KEY = 'wpsitesync_extension_list';
 	const TRANSIENT_TTL = 86400;					// 24 hours
+	const EXTENSIONS_DATA = 'syncextensions';
 
 	private static $_instance = NULL;
 
-	private function __construct()
+	public function __construct()
 	{
-	}
-
-	public static function get_instance()
-	{
-		if (NULL === self::$_instance)
-			self::$_instance = new self();
-		return self::$_instance;
 	}
 
 	public function init_settings()
@@ -24,111 +19,64 @@ class SyncExtensionSettings
 		// no settings fields to display so nothing to initialize
 	}
 
+	/**
+	 * Outputs the content for the Exention Settings Page- a list of available extensions
+	 */
 	public function show_settings()
 	{
-		echo '<h3>Available Extensions:</h3>';
+		echo '<h3>', __('Available Extensions:', 'wpsitesynccontent'), '</h3>';
 
 		$extens = $this->_get_extension_data();
-		if (FALSE === $extens) {
-			echo '<p><b>Error:</b> Temporarily unable to read data from https://wpsitesync.com</p>';
+//echo __LINE__, ':', var_export($extens, TRUE), PHP_EOL;
+		if (NULL === $extens) {
+			echo '<p>', __('<b>Error:</b> Temporarily unable to read data from https://serverpress.com', 'wpsitesynccontent'), '</p>';
 		} else {
 			$count = 0;
-			foreach ($extens as $ext_info) {
-				// image is 491x309
+			echo '<div class="sync-extension-list">';
+			foreach ($extens->extensions as $ext_info) {
 				echo '<div class="sync-extension">';
-				echo '<h3>', esc_html($ext_info['title']), ' ', $ext_info['price'], '</h3>';
+				echo '<a href="', esc_url($ext_info->url), '" target="_wpsitesync">';
+				echo	'<img class="sync-extension-image" src="', $ext_info->image, '" width="300" height="150" />';
+				echo '</a>';
+				echo '<a href="', esc_url($ext_info->url), '" target="_wpsitesync">';
+				echo	'<h3>', esc_html($ext_info->name), ' ', $ext_info->price, '</h3>';
+				echo	'<p>v', $ext_info->version, ' ', esc_html($ext_info->description), '</p>';
+				echo '</a>';
 				echo '</div>';
 				++$count;
 			}
-			echo '<p>', sprintf(__('%1$d extensions found.', 'wpsitesynccontent')), '</p>';
+			echo '</div>';
+			echo '<div style="clear:both"></div>';
+			echo '<p>', sprintf(_n('%1$d extension found.', '%1$d extensions found.', $count, 'wpsitesynccontent'), $count), '</p>';
 		}
 	}
 
+	/**
+	 * Retrieves JSON encoded data that describes current WPSiteSync extension offerings
+	 * @return string JSON data representing extensions or FALSE if not available
+	 */
 	private function _get_extension_data()
 	{
+//$data = json_decode(file_get_contents(dirname(__FILE__) . '/syncextensions.json'));
+//return $data;
+
 		$data = get_transient(self::TRANSIENT_KEY);
 		if (FALSE === $data) {
-			$url = self::FEED_URL;
-$url = 'http://wpsitesync.dev/downloadfeed/';
-			$response = wp_remote_get($url);
-//echo 'reading data from ', $url, '<br/>';
+			$url = self::CONTENT_URL . self::EXTENSIONS_DATA . '.json';
+			$response = wp_remote_get($url, array('sslverify' => FALSE));
+
 			if (is_wp_error($response)) {
-				return FALSE;
-die('error');
+				$data = SyncView::load_view(self::EXTENSIONS_DATA, array(), TRUE);
+				if (empty($data))
+					return FALSE;
 			} else {
 				$data = wp_remote_retrieve_body($response);
 			}
-//			set_transient(self::TRANSIENT_KEY, $data, self::TRANSIENT_TTL);
+			$data = json_decode($data);
+			set_transient(self::TRANSIENT_KEY, $data, self::TRANSIENT_TTL);
 		}
 
-//echo '<pre>', $data, '</pre>';
-//echo 'read ', strlen($data), ' bytes of data<br/>';
-
-		$ret = array();
-		$info = array();
-
-		$xmldoc = simplexml_load_string($data);
-//echo 'found ', count($xmldoc->channel->item), ' items<br/>';
-		foreach ($xmldoc->channel->item as $item) {
-//echo 'title=', $item->title, '<br/>';
-			$info = array(
-				'title' => $item->title,
-				'link' => $item->link,
-				'price' => $item->price,
-				'saleprice' => isset($item->saleprice) ? $item->saleprice : '',
-				'image' => isset($item->image) ? $item->image : '',
-			);
-			$ret[] = $info;
-		}
-//echo '<pre>', var_export($xmldoc, TRUE), '</pre>';
-		return $ret;
-####
-		$parser = xml_parser_create();
-		xml_parser_set_option($parser, XML_OPTION_CASE_FOLDING, 0);
-		xml_parser_set_option($parser, XML_OPTION_SKIP_WHITE, 1);
-		xml_parse_into_struct($parser, $data, $values, $tags);
-		xml_parser_free($parser);
-
-		foreach ($tags as $key => $val) {
-			echo $key, ' = ', esc_html($val), '<br/>';
-			if ('item' === $key) {
-				echo var_export($val, TRUE), '<br/>';
-				foreach ($val as $idx) {
-					echo 'value=', var_export($values[$idx], TRUE), '<br/>';
-				}
-			}
-		}
-
-		return $ret;
-####
-		
-
-		// parse the XML data
-		$xml = new DOMDocument();
-		$xml->loadHTML($data);
-		$items = $xml->getElementsByTagName('item');
-
-		// loop through each <item> tag and return them
-		$nodes = $xml->documentElement;
-		$count = 0;
-		foreach ($nodes->childNodes as $item) {
-			echo $item->nodeName, ' = ', esc_html($item->nodeValue), '<br/>';
-			++$count;
-		}
-		echo '<p>found ', $count, ' nodes<br/>';
-
-/*		for ($i = $items->length - 1; $i >= 0; $i--) {
-			$node = $items->item($i);
-			$title = $node->get('title');
-echo $title, '<br/>';
-			if (FALSE !== stripos($title, 'wpsitesync')) {
-				$ret[] = array(
-					'title' => $title,
-				);
-			}
-		} */
-
-		return $ret;
+		return $data;
 	}
 }
 

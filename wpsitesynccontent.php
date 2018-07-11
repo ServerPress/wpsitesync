@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.3.3
+Version: 1.4
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,7 +24,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.3.3';
+		const PLUGIN_VERSION = '1.4';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
@@ -40,17 +40,17 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 		private function __construct()
 		{
 			// set up autoloading
-			spl_autoload_register(array(&$this, 'autoload'));
+			spl_autoload_register(array($this, 'autoload'));
 
 			// activation hooks
-			register_activation_hook(__FILE__, array(&$this, 'activate'));
-			register_deactivation_hook(__FILE__, array(&$this, 'deactivate'));
+			register_activation_hook(__FILE__, array($this, 'activate'));
+			register_deactivation_hook(__FILE__, array($this, 'deactivate'));
 
-			add_action('plugins_loaded', array(&$this, 'endpoints_init'), 1);
+			add_action('plugins_loaded', array($this, 'endpoints_init'), 1);
 			// don't need the wp_ajax_noprov callback- AJAX calls are always within the admin
-			add_action('wp_ajax_spectrom_sync', array(&$this, 'check_ajax_query'));
+			add_action('wp_ajax_spectrom_sync', array($this, 'check_ajax_query'));
 
-			add_action('plugins_loaded', array(&$this, 'plugins_loaded'));
+			add_action('plugins_loaded', array($this, 'plugins_loaded'));
 
 			// the following are needed during add-on updates to fix problem with long file names on Windows
 			add_filter('wp_unique_filename', array($this, 'filter_unique_filename'), 10, 4);

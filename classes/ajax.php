@@ -41,7 +41,6 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 		$response = new SyncApiResponse(TRUE);
 
 		// set headers
-//		header('Content-Type: text/html; charset=ISO-utf-8');
 		header('Content-Type: application/json; charset=utf-8');
 		header('Content-Encoding: ajax');
 		header('Cache-Control: private, max-age=0');
@@ -57,6 +56,8 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 			$response->send();
 		}
 		// TODO: check nonce
+
+		do_action('spectrom_sync_api_action_before', $operation, $response, $this);		// helpful in handling multiple targets #50
 
 		switch ($operation) {
 		case 'activate':
@@ -78,7 +79,7 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 				$response->set('status', 'unknown');
 			break;
 		case 'push':
-			$this->_push($response);
+			$this->push($response);
 			break;
 		case 'upload_media':
 			$this->upload_media($response);
@@ -90,12 +91,11 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 			// allow add-ons a chance to handle their own AJAX request operation types
 			if (FALSE === apply_filters('spectrom_sync_ajax_operation', FALSE, $operation, $response)) {
 				// No method found, fallback to error message.
-//				$response->success(FALSE);
 				$response->error_code(SyncApiRequest::ERROR_EXTENSION_MISSING, $operation);
-				// TODO: error_code() data parameter
 				$response->error(sprintf(__('Method `%s` not found.', 'wpsitesynccontent'), $operation));
 			}
 		}
+		do_action('spectrom_sync_api_action_after', $operation, $response, $this);			// helpful in handling multiple targets #50
 
 		// send the response to the browser
 //SyncDebug::log(__METHOD__.'() operation "' . $operation . '" returning ' . var_export($response, TRUE));
@@ -104,7 +104,6 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 
 	/**
 	 * Ajax Callback
-	 * 
 	 * Sends an auth request to the target host.		 
 	 */
 	public function verify_connection(SyncApiResponse $response)
@@ -129,10 +128,9 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 
 	/**
 	 * Ajax callback
-	 *
 	 * Pushes the data to the target site.
 	 */
-	private function _push(SyncApiResponse &$response)
+	public function push(SyncApiResponse &$response)
 	{
 SyncDebug::log(__METHOD__.'()');
 
@@ -148,7 +146,7 @@ SyncDebug::log('- failed nonce check');
 		$post_id = $this->post_int('post_id', 0);
 		$api = new SyncApiRequest();
 		$api_response = $api->api('push', array('post_id' => $post_id));
-$response->copy($api_response);
+		$response->copy($api_response);
 		if ($api_response->is_success()) {
 			$response->success(TRUE);
 			$response->set('message', __('Content successfully sent to Target system.', 'wpsitesynccontent'));

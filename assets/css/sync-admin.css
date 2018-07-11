@@ -106,6 +106,7 @@ padding-right: 5px;
 	transform: rotate(180deg);
 padding-bottom: 3px;
 padding-left: 3px;
+	vertical-align: text-top;
 }
 #spectrom_sync #sync-message-dismiss .dashicons {
 	font-size: 85%;
@@ -184,4 +185,42 @@ width: 70%;
 /** styles for the settings page **/
 .spectrom-sync-settings #form-spectrom-sync table.form-table th, #form-spectrom-sync table.form-table td {
 	padding: .4rem 0;
+}
+
+/** styles for the extensions page **/
+.sync-extension-list {
+	margin: .5rem .75rem;
+	clear: both;
+}
+
+.sync-extension-list .sync-extension {
+	min-width: 300px;
+	height: 340px;
+	width: 24%;
+width: 300px;
+margin-right: .75rem;
+margin-bottom: .5rem;
+	float: left;
+	box-shadow: 0 2px 1px #ccc;
+	background-color: #e8e8e8;
+}
+.sync-extension-list .sync-extension:hover {
+	background-color: white;
+}
+
+.sync-extension-list .sync-extension a {
+	text-decoration: none;
+}
+.sync-extension-list .sync-extension a h3 {
+	font-size: 14px;
+	text-decoration: none;
+	color: black;
+	padding-left: .5rem;
+	padding-right: .5rem;
+}
+.sync-extension-list .sync-extension a p {
+	text-decoration: none;
+	color: black;
+	padding-left: .5rem;
+	padding-right: .5rem;
 }

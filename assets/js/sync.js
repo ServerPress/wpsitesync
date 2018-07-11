@@ -45,6 +45,92 @@ WPSiteSyncContent.prototype.init = function()
 };
 
 /**
+ * Initialization for Gutenberg
+ */
+WPSiteSyncContent.prototype.init_gutenberg = function()
+{
+console.log('init_gutenberg()');
+	// https://riad.blog/2017/10/16/one-thousand-and-one-way-to-extend-gutenberg-today/
+	// check to see if Gutenberg API code exists and initialize the Gutenberg Component Metabox
+	if ('undefined' !== typeof(wp.blocks) && 'undefined' !== typeof(wp.blocks.registerBlockType)) {
+//alert('init gutenberg');
+		var header = jQuery('#spectrom_sync h2').html();
+		// copies the HTML content of the metabox from "Extended Settings" within the Component menu
+		var sync_contents = jQuery('#spectrom_sync div.inside').html();
+		if ('undefined' === typeof(sync_contents))
+			return;						// nothing there, let's not muck with it
+console.log(sync_contents);
+console.log('read ' + sync_contents.length + ' bytes of popup content.')
+		// remove the old metabox
+		jQuery('#spectrom_sync').parent().parent().remove();
+
+//console.log('sync_contents: ' + sync_contents);
+		var content = '<div id="spectrom_sync" class="components-panel__body">' +
+			'<h2 class="components-panel__body-title">' +
+				'<button type="button" aria-expanded="false" class="components-button components-panel__body-toggle" onclick="wpsitesynccontent.show_component(); return false;">' +
+					header +
+					'<svg aria-hidden="true" role="img" focusable="false" class="dashicon dashicons-arrow-down" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">' +
+//						'<path d="M8 6l6 4.03L8 14V6z"></path>' +
+						'<path d="M15 8l-4.03 6L7 8h8z"></path>' +
+					'</svg>' +
+				'</button>' +
+			'</h2>' +
+			'<div class="editor-post-spectrom-sync inside invisible">' +
+				sync_contents +
+			'</div>' +
+			'</div>';
+		// TODO: move into sync-admin.css
+		var style = '<style>' +
+			'#spectrom-sync { background-color: transparent; } ' +
+			'.edit-post-sidebar #spectrom_sync .inside { padding: 0 .5rem .5rem .5rem; background-color: white !important; } ' +
+			'.edit-post-sidebar #spectrom_sync .inside.visible { display: block; }' +
+			'.edit-post-sidebar #spectrom_sync .inside.invisible { display: none; }' +
+			'.components-panel__body-toggle.components-button { background-color: white !important; } ' +
+			'</style>';
+
+		// inject the metabox at the top of the Component menu
+//		jQuery('.edit-post-sidebar .components-panel .components-panel__body:nth-child(1)').before(style + content);
+//		jQuery('.edit-post-sidebar .components-panel__header').before(style + content);
+//		jQuery('.edit-post-sidebar').before(style + content);
+console.log('looking up dom');
+		var eps = jQuery('.edit-post-sidebar');
+//console.log(eps);
+//console.log(jQuery('.edit-post-sidebar .edit-post-sidebar-header'));
+//		jQuery('.edit-post-sidebar .edit-post-sidebar-header:nth-child(1)').before(style + content);
+		jQuery('.edit-post-sidebar .edit-post-sidebar-header').before(style + content);
+		jQuery('#sync-logo').parent().css('margin-right', '70px');
+	}
+};
+
+/**
+ * Shows the WPSiteSync Component menu metabox
+ */
+WPSiteSyncContent.prototype.show_component = function()
+{
+	// TODO: save state in cookie
+	jQuery('#spectrom_sync .inside')
+		.removeClass('invisible').addClass('visible');
+	jQuery('#spectrom_sync button svg')
+		.removeClass('dashicons-arrow-down').addClass('dashicons-arrow-up')
+		.html('<path d="M7 13l4.03-6L15 13H7z"></path>');
+	jQuery('#spectrom_sync button.components-button').attr('onclick', 'wpsitesynccontent.hide_component(); return false;').blur();
+};
+
+/**
+ * Hides the WPSiteSync Component menu metabox
+ */
+WPSiteSyncContent.prototype.hide_component = function()
+{
+	// TODO: save state in cookie
+	jQuery('#spectrom_sync .inside')
+		.removeClass('visible').addClass('invisible');
+	jQuery('#spectrom_sync button svg')
+		.removeClass('dashicons-arrow-up').addClass('dashicons-arrow-down')
+		.html('<path d="M15 8l-4.03 6L7 8h8z"></path>');
+	jQuery('#spectrom_sync button.components-button').attr('onclick', 'wpsitesynccontent.show_component(); return false;').blur();
+};
+
+/**
  * Return the value of a GET parameter from the URL
  * @param {string} name Name of parameter to get
  * @returns {String} The value of the parameter if found, otherwise null.
@@ -368,6 +454,9 @@ var wpsitesynccontent = new WPSiteSyncContent();
 // initialize the WPSiteSync operation on page load
 jQuery(document).ready(function() {
 	wpsitesynccontent.init();
+	// setting timer avoids issues with Gutenberg UI taking a while to get set up
+	setTimeout(function() { wpsitesynccontent.init_gutenberg(); }, 200);
+	jQuery(document).trigger('sync_init');
 });
 
 // EOF

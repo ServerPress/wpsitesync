@@ -17,9 +17,9 @@ class SyncSettings extends SyncInput
 
 	private function __construct()
 	{
-		add_action('admin_menu', array(&$this, 'add_configuration_page'));
-		add_action('admin_init', array(&$this, 'settings_api_init'));
-		add_action('load-settings_page_sync', array(&$this, 'contextual_help'));
+		add_action('admin_menu', array($this, 'add_configuration_page'));
+		add_action('admin_init', array($this, 'settings_api_init'));
+		add_action('load-settings_page_sync', array($this, 'contextual_help'));
 
 //		$this->_options = SyncOptions::get_all();
 	}
@@ -94,11 +94,11 @@ class SyncSettings extends SyncInput
 				'title' => __('General Settings for WPSiteSync for Content', 'wpsitesynccontent'),
 				'icon' => 'list-view',
 			),
-//			'extensions' => array(
-//				'name' => __('Extensions', 'wpsitesynccontent'),
-//				'title' => __('Available WPSiteSync Extensions', 'wpsitesynccontent'),
-//				'icon' => 'exerpt-view',
-//			),
+			'extensions' => array(
+				'name' => __('Extensions', 'wpsitesynccontent'),
+				'title' => __('Available WPSiteSync Extensions', 'wpsitesynccontent'),
+				'icon' => 'exerpt-view',
+			),
 		);
 		if (count($extensions) > 0) {
 			$tabs['license'] = array(
@@ -138,8 +138,8 @@ class SyncSettings extends SyncInput
 			break;
 
 		case 'extensions':
-//			$ext = SyncExtensionSettings::get_instance();
-//			$ext->show_settings();
+			$ext = new SyncExtensionSettings();
+			$ext->show_settings();
 			break;
 
 		case 'license':
@@ -154,7 +154,8 @@ class SyncSettings extends SyncInput
 		}
 		echo '<input type="hidden" name="sync-settings-tab" value="', esc_attr($this->_tab), '" />';
 		do_settings_sections('sync');
-		submit_button();
+		if ('extensions' !== $this->_tab)
+			submit_button();
 		echo '</form>';
 		echo '<p>', __('WPSiteSync for Content Site key: ', 'wpsitesynccontent'), '<b>', SyncOptions::get('site_key'), '</b></p>';
 		echo '</div><!-- #tab_container -->';
@@ -230,6 +231,15 @@ class SyncSettings extends SyncInput
 			'__return_true',								// callback
 			self::SETTINGS_PAGE								// option page
 		);
+
+		add_settings_field('hostmsg',
+			'',
+			array($this, 'render_message_field'),
+			self::SETTINGS_PAGE,
+			$section_id,
+			array(
+				'description' => __('Configure this site (Source) to connect with your Target site. If this is your Target site, you do not need to enter any configuration settings for the Target site.', 'wpsitesynccontent'),
+			));
 
 		add_settings_field(
 			'host',											// field id
@@ -337,6 +347,35 @@ class SyncSettings extends SyncInput
 			)
 		);
 
+		// add setting for minimum user role #122
+		$min_role = isset($data['min_role']) ? $data['min_role'] : 'author';
+		switch ($min_role) {
+		default:
+		case 'author':			$desc = __('Author - User needs to have Author permissions (Author, Editor, Admin).', 'wpsitesynccontent');
+			break;
+		case 'editor':			$desc = __('Editor - User needs to have Editor permissions (Editor, Admin).', 'wpsitesynccontent');
+			break;
+		case 'administrator':	$desc = __('Admin - User needs to have Admin permissions (Admins only).', 'wpsitesynccontent');
+			break;
+		}
+
+		add_settings_field(
+			'min_role',										// field id
+			__('Minimum Role to use WPSiteSync:', 'wpsitesynccontent'),		// title
+			array($this, 'render_select_field'),			// callback
+			self::SETTINGS_PAGE,							// page
+			$section_id,									// section id
+			array(											// args
+				'name' => 'min_role',
+				'value' => $min_role,
+				'options' => array(
+					'author' => __('Authors, Editors and Admins', 'wpsitesynccontent'),
+					'editor' => __('Editor and Admins', 'wpsitesynccontent'),
+					'administrator' => __('Admins Only', 'wpsitesynccontent'),
+				),
+				'description' => $desc,
+			)
+		);
 /*
 		add_settings_field(
 			'salt',											// field id
@@ -371,7 +410,7 @@ class SyncSettings extends SyncInput
 
 		add_settings_field(
 			'remove',										// field id
-			__('Optionally remove Settings and Tables on plugin deactivation:', 'wpsitesynccontent'),	// title
+			__('Optionally remove Settings and Tables on plugin uninstall:', 'wpsitesynccontent'),	// title
 			array(&$this, 'render_radio_field'),			// callback
 			self::SETTINGS_PAGE,							// page
 			$section_id,									// section id
@@ -523,6 +562,8 @@ class SyncSettings extends SyncInput
 			if (empty($values[$key]) && 'password' === $key) {
 				// ignore this so that passwords are not required on every settings update
 			} else {
+				if ('password' !== $key)
+					$value = trim($value);			// strip any whitespaces on non-password fields #73
 				if ('host' === $key) {
 					// check to see if 'host' is changing and force use of password
 					if ($value !== $settings['host'] && empty($values['password'])) {
@@ -678,7 +719,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authentication response from Targ
 				'<p>' . __('<strong>Username on Target</strong>: Enter the Administrator username for the Target website.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Password on Target</strong>: Enter the Administrator password for the Target website.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Strict Mode</strong>: Select if WordPress and WPSiteSync for Content should be the same versions on the Source and the Target.', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<strong>Match Mode</strong>: How WPSiteSync should match posts on the Target. You can select "Post Title" (default), or "Post Slug" to match Content by Title or Slug.', 'wpsitesynccontent') . '</p>'
+				'<p>' . __('<strong>Match Mode</strong>: How WPSiteSync should match posts on the Target. You can select "Post Title" (default), or "Post Slug" to match Content by Title or Slug.', 'wpsitesynccontent') . '</p>' .
+				'<p>' . __('<strong>Minimum Role</strong>: The Minimum User Role required in order to use the features of WPSiteSync. Selecting Author means that Authors, Editors and Admins can use WPSiteSync. Selecting Editor means Editors and Admins can use WPSiteSync. Selecting Admin means that only Admins can use WPSiteSync.', 'wpsitesynccontent') . '</p>'
 //				'<p>' . __('<strong>Authentication Salt:</strong>: Enter a salt to use when Content is sent to current site or leave blank.', 'wpsitesynccontent') . '</p>' .
 //				'<p>' . __('<strong>Minimum Role allowed to SYNC Content</strong>: Select minimum role of user who can Sync Content to current site.', 'wpsitesynccontent') . '</p>'
 		));

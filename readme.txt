@@ -4,7 +4,7 @@ Donate link: http://wpsitesync.com
 Tags: attachments, content, content sync, data migration, desktopserver, export, import, migrate content, moving data, staging, synchronization, taxonomies
 Requires at least: 3.5
 Requires PHP: 5.3.1
-Tested up to: 4.8.2
+Tested up to: 4.9
 Stable tag: trunk
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -111,6 +111,43 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.4 - Jul 10, 2018 =
+* fix: fix conversion of url to file path when Pushing media content (Thanks Jocelyn M.)
+* fix: fix conversion of mis-matched schemes in Source Content (Thanks Jocelyn M.)
+* fix: fixup url encoded Source domain references to Target domain (Thanks Jocelyn M.)
+* fix: maintain upload location of Source files on Target site (Thanks Bradley S.)
+* fix: improve error checking on API calls to Target site (Thanks Erin M.)
+* enhancement: add features to help implement multiple Targets sites feature
+* enhancement: add notices at start/end of Push queue processing
+* enhancement: improve handling of serialized meta data containing URL references (Thanks Rob H./Jadran B.)
+* enhancement: handle pushing of images referenced on CDNs (Thanks Rob H./Jadran B.)
+* enhancement: add failover for obtaining contents of images
+* enhancement: implement Gutenberg UI elements
+* enhancement: better handling of inputs on Settings page
+* enhancement: add information on featured image to Content Deatils
+* enhancement: improve messaging/descriptions on Settings page
+* enhancement: improve handling of image references and mapping to attachment id (Thanks Erin M.)
+* enhancement: added available extensions to Settings page
+* enhancement: added minimum user role to have access to WPSiteSync metabox UI (Thanks Dave H.)
+
+= 1.3.3 - Jan 16, 2018 =
+* fix: allow for custom post status values (Thanks Alex V.)
+* fix: removed deprecated warnings for function calls (Thanks Peter M.)
+* fix: resolve undefined index warnings on empty configs (Thanks Peter M.)
+* fix: fix to usage of fallback encryption method (Thanks Mika A.)
+* fix: fix spelling error and array index error
+* fix: runtime error that can occasionally occur while processing taxonomies
+* fix: runtime error that can occur on first edit of settings
+* fix: minor security update- remove bad password message that could imply valid account name
+* fix: remove deprecation messages for mcrypt functions
+* enhancement: add checks for SSL specific error conditions
+* enhancement: add "more info" links to all error messages shown in UI
+* enhancement: updates to licensing code
+* enhancement: check serverpress.com domain for licensing data
+* enhancement: add get_param method to javascript code
+* enhancement: make SyncApiResponse instance available from Controller; needed by Divi add-on
+* enhancement: check data object used in API calls and return early if contains error
+
 = 1.3.2 - Oct 12, 2017 =
 * fix: improve checking for sync-specific meta data to be ignored
 * fix: only set user id if available in SyncApiController->push()

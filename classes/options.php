@@ -23,6 +23,7 @@ class SyncOptions
 	 * 'min_role' = minimum role allowed to perform SYNC operations
 	 * 'remove' = remove settings/tables on plugin deactivation
 	 * 'match_mode' = method for matching content on Target: 'title', 'slug', 'id'
+	 * 'min_role' = minimum role required to be able to perform Sync operations #122
 	 */
 
 	/**
@@ -32,14 +33,8 @@ class SyncOptions
 	{
 		if (NULL === self::$_options)
 			self::$_options = get_option(self::OPTION_NAME, array());
-//		if (!empty(self::$_options['host'])) {
-//			$auth = new SyncAuth();
-//			self::$_options['password'] = $auth->decode_password(self::$_options['password'], self::$_options['host']);
-//		}
 
 		// perform fixup / cleanup on option values...migrating from previous configuration settings
-//		if (!isset(self::$_options['remove']))
-//			self::$_options['remove'] = '0';
 		$defaults = array(
 			'host' => '',
 			'username' => '',
@@ -52,8 +47,9 @@ class SyncOptions
 			'min_role' => '',
 			'remove' => '0',
 			'match_mode' => 'title',
+			'min_role' => 'author',
 		);
-//die('options: ' . var_export(self::$_options, TRUE));
+
 		self::$_options = array_merge($defaults, self::$_options);
 	}
 
@@ -114,6 +110,32 @@ class SyncOptions
 		self::_load_options();
 		if (isset(self::$_options['auth']) && 1 === intval(self::$_options['auth']))
 			return TRUE;
+		return FALSE;
+	}
+
+	/**
+	 * Use settings to determine if user has access to WPSiteSync features #122
+	 * @return boolean TRUE if user is allowed, based on configuration and current role; otherwise FALSE
+	 */
+	public static function has_cap()
+	{
+		$min_role = self::get('min_role');
+		$current_user = wp_get_current_user();
+
+		switch ($min_role) {
+		case 'administrator':
+			if (in_array($min_role, $current_user->roles))
+				return TRUE;
+			break;
+		case 'editor':
+			if (in_array($min_role, $current_user->roles) || in_array('administrator', $current_user->roles))
+				return TRUE;
+			break;
+		case 'author':
+			if (in_array($min_role, $current_user->roles) || in_array('editor', $current_user->roles) || in_array('administrator', $current_user->roles))
+				return TRUE;
+			break;
+		}
 		return FALSE;
 	}
 

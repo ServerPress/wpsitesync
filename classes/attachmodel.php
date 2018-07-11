@@ -6,7 +6,7 @@ class SyncAttachModel
 
 	/**
 	 * Searches for attachment resources by GUID
-	 * @param string $guid The GUIS, or URL used to identify the resource
+	 * @param string $guid The GUID, or URL used to identify the resource
 	 * @param boolean $extended_search Whether or not to perform an extended search
 	 * @return NULL|array The found resource or NULL if no resources found
 	 */
@@ -136,6 +136,50 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' unrecognized image size: ' . var_
 		}
 
 		return $ret;
+	}
+
+	/**
+	 * Creates a new entry for an attachment in the wp_posts table
+	 * @param string $guid The GUID of the image/attachment to insert
+	 * @param int $post_id The parent post ID
+	 * @return int The new attachment's post ID value or 0 on failure
+	 */
+	public function create_from_guid($guid, $post_id)
+	{
+		$time = current_time('mysql');
+		$name = $path = parse_url($guid, PHP_URL_PATH);
+		$pos = strrpos($path, '/');
+		if (FALSE !== $pos)
+			$name = substr($path, $pos + 1);
+		$mime_type = wp_check_filetype($path);
+
+		$data = array(
+			'post_author' => get_current_user_id(),
+			'post_date' => $time,
+			'post_date_gmt' => $time,
+			'post_content' => $name,
+			'post_title' => $name,
+			'post_excerpt' => $name,
+			'post_status' => 'inherit',
+			'comment_status' => 'open',						//
+			'ping_status' => 'open',						//
+			'post_password' => '',
+			'post_name' => $name,
+			'to_ping' => '',								//
+			'pinged' => '',									//
+			'post_modified' => $time,
+			'post_modified_gmt' => $time,
+			'post_content_filtered' => '',
+			'post_parent' => $post_id,
+			'guid' => $guid,
+			'menu_order' => 0,
+			'post_type' => 'attachment',
+			'post_mime_type' => $mime_type['type'],
+			'comment_count' => 0,
+		);
+		global $wpdb;
+		$wpdb->insert($wpdb->posts, $data);
+		return $wpdb->insert_id;
 	}
 }
 

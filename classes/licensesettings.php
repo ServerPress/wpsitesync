@@ -10,8 +10,7 @@ class SyncLicenseSettings extends SyncInput
 	public function init_settings()
 	{
 SyncDebug::log(__METHOD__.'()');
-		$section_id = self::SETTING_FIELDS;
-$section_id = 'sync_section';
+		$section_id = 'sync_section';
 
 		$lic = new SyncLicensing();
 		$licenses = $lic->get_license_keys(); // $this->_load_licenses();
@@ -21,7 +20,7 @@ $section_id = 'sync_section';
 		register_setting(
 			self::OPTION_GROUP,									// option group, used for settings_fields()
 			SyncLicensing::OPTION_NAME,							// option name, used as key in database
-			array(&$this, 'validate_settings')					// validation callback
+			array($this, 'validate_settings')					// validation callback
 		);
 
 		add_settings_section(

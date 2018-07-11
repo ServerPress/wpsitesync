@@ -117,7 +117,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' processed all licensing servers; 
 	private function _get_api_url()
 	{
 		$url = self::LICENSE_API_URL_PRIMARY;
-SyncDebug::log(__METHOD__.'():' . __LINE__, TRUE);
+//SyncDebug::log(__METHOD__.'():' . __LINE__, TRUE);
 		if (file_exists(dirname(dirname(__FILE__)) . '/license.tmp'))
 			$url = str_replace('//', '//staging.', $url);
 		return $url;

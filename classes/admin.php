@@ -14,10 +14,10 @@ class SyncAdmin
 	private function __construct()
 	{
 		// Hook here, admin_notices won't work on plugin activation since there's a redirect.
-		add_action('admin_notices', array(&$this, 'configure_notice'));
-		add_action('admin_enqueue_scripts', array(&$this, 'admin_enqueue_scripts'));
-		add_action('add_meta_boxes', array(&$this, 'add_sync_metabox'));
-		add_filter('plugin_action_links_wpsitesynccontent/wpsitesynccontent.php', array(&$this, 'plugin_action_links'));
+		add_action('admin_notices', array($this, 'configure_notice'));
+		add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
+		add_action('add_meta_boxes', array($this, 'add_sync_metabox'));
+		add_filter('plugin_action_links_wpsitesynccontent/wpsitesynccontent.php', array($this, 'plugin_action_links'));
 
 		add_action('before_delete_post', array($this, 'before_delete_post'));
 
@@ -41,7 +41,8 @@ class SyncAdmin
 	 */
 	public function configure_notice()
 	{
-		if (1 != get_option('spectrom_sync_activated')) {
+		// add check for minimum user role setting #122
+		if (1 != get_option('spectrom_sync_activated') && SyncOptions::has_cap()) {
 			// Make sure this runs only once.
 			add_option('spectrom_sync_activated', 1);
 			$notice = __('You just installed WPSiteSync for Content and it needs to be configured. Please go to the <a href="%s">WPSiteSync for Content Settings page</a>.', 'wpsitesynccontent');
@@ -56,6 +57,9 @@ class SyncAdmin
 	 */
 	public function admin_enqueue_scripts($hook_suffix)
 	{
+		// check for minimum user role settings #122
+		if (!SyncOptions::has_cap())
+			return;
 		wp_register_script('sync', WPSiteSyncContent::get_asset('js/sync.js'), array('jquery'), WPSiteSyncContent::PLUGIN_VERSION, TRUE);
 		wp_register_script('sync-settings', WPSiteSyncContent::get_asset('js/settings.js'), array('jquery'), WPSiteSyncContent::PLUGIN_VERSION, TRUE);
 
@@ -81,6 +85,11 @@ class SyncAdmin
 	 */
 	public function add_sync_metabox($post_type)
 	{
+		// check for minimum user role settings #122
+		if (!SyncOptions::has_cap()) {
+			return;
+		}
+
 		$target = SyncOptions::get('host', NULL);
 		$auth = SyncOptions::get('auth', 0);
 
@@ -97,10 +106,14 @@ class SyncAdmin
 				add_meta_box(
 					'spectrom_sync',				// TODO: update name
 					$img, // __('WPSiteSync for Content', 'wpsitesynccontent'),
-					array(&$this, 'render_sync_metabox'),
+					array($this, 'render_sync_metabox'),
 					$post_type,
 					'side',
-					'high');
+					'high',
+					array(
+						'__block_editor_compatible_meta_box' => TRUE,
+//						'__back_compat_meta_box' => TRUE,
+					));
 			}
 		}
 	}
@@ -186,7 +199,7 @@ class SyncAdmin
 		echo '<div id="sync-working-msg"><img src="', WPSiteSyncContent::get_asset('imgs/ajax-loader.gif'), '" />', '</div>';
 		echo '<div id="sync-success-msg">', __('Content successfully sent to Target system.', 'wpsitesynccontent'), '</div>';
 		if (!class_exists('WPSiteSync_Pull', FALSE))
-				echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Please activate the Pull extension.', 'wpsitesynccontent'), '</div></div>';
+			echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Please activate the Pull extension.', 'wpsitesynccontent'), '</div></div>';
 		echo '<div id="sync-runtime-err-msg">', __('A PHP runtime error occured while processing your request. Examine Target log files for more information.', 'wpsitesynccontent'), '</div>';
 		echo '<div id="sync-error-msg">', __('Error: error encountered during request.', 'wpsitesynccontent'), '</div>';
 		echo '</div>';
@@ -207,7 +220,9 @@ class SyncAdmin
 	 */
 	public function plugin_action_links($actions)
 	{
-		$actions[] = sprintf('<a href="%1$s">%2$s</a>', admin_url('options-general.php?page=sync'), __('Settings', 'wpsitesynccontent'));
+		// add check for minimum user role settings #122
+		if (SyncOptions::has_cap())
+			$actions[] = sprintf('<a href="%1$s">%2$s</a>', admin_url('options-general.php?page=sync'), __('Settings', 'wpsitesynccontent'));
 		return $actions;
 	}
 
@@ -284,6 +299,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - target data: ' . var_export($re
 						'target_post_id' => $response_data->target_post_id, // $target_post_id,
 						'post_title' => $response_data->post_title, // $target_post->post_title,
 						'post_author' => $response_data->post_author, // $response_body->data->username,
+						'feat_img' => isset($response_data->feat_img) ? $response_data->feat_img : '',
 						'modified' => $response_data->modified, // $target_post->post_modified_gmt,
 						'content' => substr($response_data->content, 0, 200) . '...', // substr(strip_tags($target_post->post_content), 0, 200) . '...',
 						'content_timeout' => current_time('timestamp') + self::CONTENT_TIMEOUT,

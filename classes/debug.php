@@ -42,14 +42,6 @@ class SyncDebug
 		if (NULL === self::$_id)
 			self::$_id = rand(10, 99);
 
-/*		$id = get_current_site()->id . '-';
-		global $wpdb;
-		$id = trim($wpdb->prefix, 'wp_');
-		if (empty($id))
-			$id = '1';
-		$id .= '-';
-		$file = dirname(dirname(__FILE__)) . '/~' . $id . 'log.txt';
-*/
 		$file = dirname(dirname(__FILE__)) . '/~log.txt';
 		$fh = @fopen($file, 'a+');
 		if (FALSE !== $fh) {

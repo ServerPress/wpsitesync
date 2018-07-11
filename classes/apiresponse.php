@@ -177,16 +177,6 @@ SyncDebug::log(__METHOD__.'() ' . var_export($json_data, TRUE));
 	}
 
 	/**
-	 * Adds an notification message to the 'notices.' element
-	 * @param string $sMsg The notice string to return to the user
-	 * @deprecated Use `notice_code()` instead
-	 */
-//	public function notice($sMsg)
-//	{
-//		$this->notices[] = $sMsg;
-//	}
-
-	/**
 	 * Sets a notice-level code to be returned to the user
 	 * @param int $code One of `SyncApiRequest::NOTICE_*` values
 	 */

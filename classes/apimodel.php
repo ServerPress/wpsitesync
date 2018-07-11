@@ -13,6 +13,7 @@ class SyncApiModel
 	 */
 	public function __construct(Array $options)
 	{
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' action=' . current_action());
 		$default_options = array(
 			'callback'	=> NULL,
 			'name'		=> 'api',
@@ -20,20 +21,20 @@ class SyncApiModel
 		);
 
 		$this->options = wp_parse_args($options, $default_options);
-
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export($this->options, TRUE));
 		// check for maintenance mode plugins
 		$this->_maintenance_check();
 
-		add_action('init', array(&$this, 'register_api'), 1000);
+		add_action('init', array($this, 'register_api'), 1000);
 
 		// endpoints work on the front end only
 		if (is_admin())
 			return;
 
 //SyncDebug::log(__METHOD__.'() request uri=' . $_SERVER['REQUEST_URI']);
-		add_filter('request', array(&$this, 'set_query_var'));
+		add_filter('request', array($this, 'set_query_var'));
 		// hook in late to allow other plugins to operate earlier
-		add_action('template_redirect', array(&$this, 'render'), 100);
+		add_action('template_redirect', array($this, 'render'), 100);
 	}
 
 	/**
@@ -98,9 +99,10 @@ class SyncApiModel
 	 */
 	public function render()
 	{
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' action=' . current_action());
 		// TODO: this needs to be redone - get_query_var() returns a TRUE not a parseable string
 		$api = get_query_var($this->options['name']);
-SyncDebug::log(__METHOD__.'() api=' . var_export($api, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api=' . var_export($api, TRUE));
 		$api = trim($api, '/');
 
 		if ('' === $api)
@@ -114,7 +116,7 @@ SyncDebug::log(__METHOD__.'() api=' . var_export($api, TRUE));
 		$values = $this->get_api_values(implode('/', $parts));
 		$callback = $this->options['callback'];
 
-		// TODO: this can be simplified. assume only Sync callback are made, which will always be array type
+		// TODO: this can be simplified. assume only Sync callbacks are made, which will always be array type
 		if (is_string($callback)) {
 //SyncDebug::log(__METHOD__.'() string callback');
 			call_user_func($callback, $values);
@@ -145,8 +147,8 @@ SyncDebug::log(__METHOD__.'() api=' . var_export($api, TRUE));
 	 */
 	protected function get_api_values($request)
 	{
-SyncDebug::log(__METHOD__.'() request=' . var_export($request, TRUE));
-SyncDebug::log(__METHOD__.'() request uri=' . $_SERVER['REQUEST_URI']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' request=' . var_export($request, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' request uri=' . $_SERVER['REQUEST_URI']);
 
 		// TODO: called by join()ing URL parts. would it be easier to pass as array?
 		$keys = $values = array();
@@ -158,8 +160,8 @@ SyncDebug::log(__METHOD__.'() request uri=' . $_SERVER['REQUEST_URI']);
 			0 === ++$count % 2 ? $keys[] = $tok : $values[] = $tok;
 			$tok = strtok('/');
 		}
-SyncDebug::log(__METHOD__.'() keys=' . var_export($keys, TRUE));
-SyncDebug::log(__METHOD__.'() vals=' . var_export($values, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' keys=' . var_export($keys, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' vals=' . var_export($values, TRUE));
 
 		// fix odd requests
 //		if (count($keys) !== count($values))
@@ -197,6 +199,19 @@ SyncDebug::log(__METHOD__.'() vals=' . var_export($values, TRUE));
 		if (class_exists('SEED_CSP4', FALSE)) {
 			add_filter('seed_csp4_get_settings', array($this, 'filter_coming_soon_options'), 10 ,1);
 			return;
+		}
+		// look for iThemes Security
+/*		if (class_exists('ITSEC_Core', FALSE)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ITSEC_Core class');
+			add_filter('option_itsec_active_modules', array($this, 'filter_itsec_modules'), 10, 2);
+			add_filter('pre_site_option_itsec_active_modules', array($this, 'filter_itsec_modules'), 10, 2);
+//			add_filter('option_itsec_temp_whitelist_ip');
+//			add_filter('option_itsec-storage');
+		} */
+		// look for WP Rocket
+		if (defined('WP_ROCKET_VERSION') && function_exists('rocket_define_donotminify_constants')) {
+			rocket_define_donotminify_constants( true );
+			rocket_define_donotasync_css_constant( true );
 		}
 
 //die('inside ' . __METHOD__. '():' . __LINE__ . ' set=' . var_export($settings, TRUE));
@@ -237,6 +252,19 @@ SyncDebug::log(__METHOD__.'() vals=' . var_export($values, TRUE));
 		$settings['status'] = '0';
 		return $settings;
 	}
+
+	/**
+	 * Filter for iThemese Security module settings. This will disable all iTSec modules on the WPSiteSync API URL
+	 * @param array $value The original value of the iThemes Security Modules setting
+	 * @param string $option The option name, in this case always 'itsec_active_modules'
+	 * @return array An empty array, disabling all iThemes Security modules on the API page
+	 */
+/*	public function filter_itsec_modules($value, $option = '')
+	{
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' option=' . var_export($option, TRUE));
+		$value = array(); // 'a:0:{}';
+		return $value;
+	} */
 }
 
 // EOF

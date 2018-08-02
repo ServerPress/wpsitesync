@@ -19,9 +19,22 @@ class SyncActivate
 	/*
 	 * called on plugin activation; performs all installation tasks
 	 */
-	public function plugin_activation()
+	public function plugin_activation( )
 	{
-		$this->create_database_tables();
+		if( !is_multisite() )
+		{
+			$this->create_database_tables();
+		} else 
+		{
+			global $wpdb;
+
+			// Get current blog id
+			$blog_id = get_current_blog_id();
+			
+			switch_to_blog( $blog_id );
+			$this->create_database_tables();
+			restore_current_blog();
+		}
 		$this->create_options();
 
 		return TRUE;

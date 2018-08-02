@@ -1,0 +1,712 @@
+2018-08-02 19:55:50#86 - SyncActivate::create_database_tables()
+2018-08-02 19:55:50#86 - SyncActivate::create_database_tables() sql=CREATE TABLE `wp_2_spectrom_sync_log` (
+					`id` 				INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+					`post_id` 			BIGINT(20) UNSIGNED NOT NULL,
+					`post_title` 		TEXT NOT NULL,
+					`push_date` 		TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					`operation`			VARCHAR(32) NOT NULL,
+					`source_user` 		BIGINT(20) UNSIGNED NOT NULL,
+					`source_site` 		VARCHAR(200) NOT NULL,
+					`source_site_key`	VARCHAR(40) NOT NULL,
+					`target_user`		BIGINT(20) UNSIGNED NOT NULL,
+
+					PRIMARY KEY (`id`),
+					INDEX `post_id` (`post_id`)
+				)DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci
+2018-08-02 19:55:50#86 - SyncActivate::create_database_tables() dbDelta() results: 
+2018-08-02 19:55:50#86 - SyncActivate::create_database_tables() sql=CREATE TABLE `wp_2_spectrom_sync` (
+					`sync_id` 			INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+					`site_key` 			VARCHAR(60) NOT NULL,
+					`source_content_id` BIGINT(20) UNSIGNED NOT NULL,
+					`target_content_id`	BIGINT(20) UNSIGNED NOT NULL,
+					`target_site_key`	VARCHAR(60) NULL DEFAULT '',
+					`content_type`		VARCHAR(32) NOT NULL DEFAULT 'post',
+					`last_update`		DATETIME NOT NULL,
+					`wp_version`		VARCHAR(20) NOT NULL,
+					`sync_version`		VARCHAR(20) NOT NULL,
+
+					PRIMARY KEY (`sync_id`),
+					INDEX `source_content_id` (`source_content_id`),
+					INDEX `target_content_id` (`target_content_id`),
+					INDEX `content_type` (`content_type`)
+				)DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci
+2018-08-02 19:55:50#86 - SyncActivate::create_database_tables() dbDelta() results: 
+2018-08-02 19:55:50#86 - SyncActivate::create_database_tables() sql=CREATE TABLE `wp_2_spectrom_sync_sources` (
+					`id`				INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+					`domain`			VARCHAR(200) NOT NULL,
+					`site_key`			VARCHAR(60) NOT NULL DEFAULT '',
+					`auth_name`			VARCHAR(60) NOT NULL,
+					`token`				VARCHAR(60) NOT NULL,
+					`allowed`			TINYINT(1) UNSIGNED NOT NULL DEFAULT '1',
+					PRIMARY KEY (`id`),
+					INDEX `site_key` (`site_key`),
+					INDEX `allowed` (`allowed`)
+				)DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci
+2018-08-02 19:55:51#86 - SyncActivate::create_database_tables() dbDelta() results: 
+2018-08-02 19:55:51#86 - SyncActivate::create_database_tables() sql=CREATE TABLE `wp_2_spectrom_sync_media` (
+					`id`				INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+					`site_key` 			VARCHAR(60) NOT NULL,
+					`remote_media_name` VARCHAR(255) NOT NULL,
+					`local_media_name`	VARCHAR(255) NOT NULL,
+
+					PRIMARY KEY (`id`),
+					INDEX `site_key` (`site_key`)
+				)DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci
+2018-08-02 19:55:51#86 - SyncActivate::create_database_tables() dbDelta() results: 
+2018-08-02 19:55:51#86 - SyncActivate::create_database_tables() - done
+2018-08-02 19:56:26#28 - SyncApiController::__construct() action=auth source=http://umia.local key=be63e75820b6e8963520c991e42698ee
+2018-08-02 19:56:26#28 - SyncApiController::__construct() - verifying nonce
+2018-08-02 19:56:26#28 - SyncApiResponse::__toString() returning response data: '{"error_code":0,"session_timeout":1,"has_errors":0,"success":1,"data":{"token":"EYH9lGYH81n5HIh4jt5TI8lVbxL9sfZCqmNn7e2gjHEWR5yb","access_nonce":"7cbdd86c29","auth_cookie":"Tyler|1533243386|2eiNa4EHVUgEsdozyDf1Zve0qDwG8q4CNutM1etjrF6|5f210e26d69ac1290e4830d263ad9c9ca6ce0c17b0d16c4a986ca37f7e7ca655","user_id":1,"site_key":"38ab70a5531c3b38d7141570325f95af"}}'
+2018-08-02 19:56:52#15 - SyncApiController::__construct() action=push source=http://umia.local key=be63e75820b6e8963520c991e42698ee
+2018-08-02 19:56:52#15 - SyncApiController::__construct() - verifying nonce
+2018-08-02 19:56:52#15 - SyncApiController::__construct() checking credentials
+2018-08-02 19:56:52#15 - SyncSourcesModel::check_auth()
+2018-08-02 19:56:52#15 - SyncApiController::push():272
+2018-08-02 19:56:52#15 -  post data: array (
+  'post_id' => '193',
+  'username' => 'Tyler',
+  'token' => 'EYH9lGYH81n5HIh4jt5TI8lVbxL9sfZCqmNn7e2gjHEWR5yb',
+  'host' => 'http://test1.wordpress.local',
+  'auth' => 
+  array (
+    'cookie' => 'Tyler|1533243386|2eiNa4EHVUgEsdozyDf1Zve0qDwG8q4CNutM1etjrF6|5f210e26d69ac1290e4830d263ad9c9ca6ce0c17b0d16c4a986ca37f7e7ca655',
+    'nonce' => '7cbdd86c29',
+    'site_key' => 'be63e75820b6e8963520c991e42698ee',
+  ),
+  'post_data' => 
+  array (
+    'ID' => '193',
+    'post_author' => '1',
+    'post_date' => '2018-07-19 09:44:24',
+    'post_date_gmt' => '2018-07-19 14:44:24',
+    'post_content' => 'Brink is a quarterly newsmagazine published by MMIC for MMIC and UMIA clients. Each issue provides fresh perspectives, themed feature articles, useful resources, case studies and claim reviews to help our clients practice better and safer care.
+<table border=\\"0\\" width=\\"600\\">
+<tbody>
+<tr>
+<td valign=\\"top\\" width=\\"50%\\"><strong>2018</strong>
+
+<strong><u><a href=\\"https://www.umia.com/docs/brinkmagazine/2018-02SpringSummer_UMIA_Brink_Magazine.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring/Summer Issue</a></u></strong> - Communication: To the Heart of the Matter
+<ul class=\\"cl\\">
+ 	<li>Can We Talk?</li>
+ 	<li>When News Isn\\\'t Good</li>
+ 	<li>No Longer Lost in Translation</li>
+ 	<li>Citizen Jurors</li>
+ 	<li>Are We Trending?</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/brink/2018-01FallWinter_UMIA_Brink_Magazine.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall/Winter Issue</a></u></strong> - Advanced Practice Providers
+<ul class=\\"cl\\">
+ 	<li>Enhanced Roles, Reducing Risk</li>
+ 	<li>Leading Through Collaboration</li>
+ 	<li>New Models of Care Delivery</li>
+ 	<li>Training Rural Trauma Teams</li>
+</ul>
+<strong>2017</strong>
+
+<strong><u><a href=\\"https://www.umia.com/docs/brink/Brink_Summer_2017-UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - The Opioid Dilemma
+<ul class=\\"cl\\">
+ 	<li>Rethinking Pain Management</li>
+ 	<li>One Treatment Does Not Fit All</li>
+ 	<li>Health Professionals &amp; Opioid Addition</li>
+ 	<li>When You Need to Say No</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/Brink_Spring2017_UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - Improving the Diagnostic Process
+<ul class=\\"cl\\">
+ 	<li>A 12-Step Diagnostic Process of Care Framework</li>
+ 	<li>When a Cough Isn\\\'t Just a Cough</li>
+ 	<li>Engaging the Patient Early</li>
+ 	<li>Debugging EHR Factors</li>
+ 	<li>Opening Up</li>
+ 	<li>Senior Living: Communicating Acute Change of Condition</li>
+ 	<li>Meditations on Medicine</li>
+</ul>
+<strong>2016</strong>
+
+<strong><u><a href=\\"https://umia.com/pdf/Brink_Fall2016_UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall Issue</a></u></strong>
+<ul class=\\"cl\\">
+ 	<li>Advanced Practice Providers</li>
+ 	<li>3 Strategies to Support APP\\\'s and Reduce Risks</li>
+ 	<li>Culture Shift: Leading Through Collaboration</li>
+ 	<li>APPs as Part of the Solutions</li>
+ 	<li>Claim Review: Communication Breakdown</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/UMIA_Brink_2016_Summer.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - Consent &amp; Communication
+<ul class=\\"cl\\">
+ 	<li>Consent &amp; Communication</li>
+ 	<li>The cost of Misunderstandings</li>
+ 	<li>Informed Consent: More than a Signature</li>
+ 	<li>Where Communication Breaks Down</li>
+ 	<li>Reducing risks Associated with Your EHR</li>
+ 	<li>Claim review: Failure to obtain Informed consent</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/UMIA_Brink_2016_Spring.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - The patient experience
+<ul class=\\"cl\\">
+ 	<li>Violence in the workplace</li>
+ 	<li>Denial doesn\\\'t help</li>
+ 	<li>Managing abusive patients</li>
+ 	<li>Compassion fatigue and disruptive behavior</li>
+ 	<li>HR policies to help weed out troublemakers</li>
+ 	<li>A patient\\\'s vengeance claim review</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/Brink_Winter2016UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Winter Issue</a></u></strong> - Surgery
+<ul class=\\"cl\\">
+ 	<li>How\\\'s your social IQ!</li>
+ 	<li>How old is \\"too old\\" to practice?</li>
+ 	<li>Successful pre-op conversations</li>
+ 	<li>Lessons learned from a wrong-site surgery</li>
+ 	<li>Claim review: preeclampsia undiagnosed and untreated</li>
+</ul>
+<strong>2015</strong>
+
+<strong><u><a href=\\"https://www.umia.com/pdf/UMIA_Brink_2015_Summer.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - Outpatient risks
+<ul class=\\"cl\\">
+ 	<li>A rare glimpse of risks in the outpatient setting.</li>
+ 	<li>Your willingness to empathize can help — or hinder — a patient’s emotional healing.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>What are the risks associated with advanced practice providers?</li>
+ 	<li>Root cause analysis as a tool for clinics.</li>
+ 	<li>The value of a formalized peer review process</li>
+ 	<li>Improving patient safety by asking for feedback.</li>
+</ul>
+<strong><u><a href=\\"http://www.mmicgroup.com/pdf/UMIA_Brink_Magazine_2015_Spring.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - The patient experience
+<ul class=\\"cl\\">
+ 	<li>How we can improve access to care.</li>
+ 	<li>Learning from our own experience as patients.</li>
+ 	<li>Apologies and their impact on the patient experience.</li>
+ 	<li>Doctor-patient relationships and the EHR.</li>
+ 	<li>Engaging patients through technology.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>Be ready to support those suffering from the unsettling events.</li>
+</ul>
+<strong><u><a href=\\"http://www.mmicgroup.com/PDF/UMIA_Brink_2015_Winter.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Winter Issue</a></u></strong> - Getting through a malpractice suit
+<ul class=\\"cl\\">
+ 	<li>Facing a medical malpractice suit.</li>
+ 	<li>Overcoming barriers between doctors and patients.</li>
+ 	<li>Doctors say a little of both</li>
+ 	<li>Complying with ever-changing regulations.</li>
+ 	<li>Health care stants and facts.</li>
+</ul>
+<strong>2014</strong>
+
+<strong><u><a href=\\"https://umia.com/PDF/UMIA_Brink_Magazine_2014_Fall.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall Issue</a></u></strong> - The physician experience
+<ul class=\\"cl\\">
+ 	<li>How physician burnout affects our medical care system.</li>
+ 	<li>Open sharing and joint accountability in a Just Culture environment.</li>
+ 	<li>Managing an advanced practice provider.</li>
+ 	<li>How doctors are finding joy again in the practice of medicine.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>The positive outcomes of an effective QAPI program.</li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/UMIA_Brink%20Magazine_2014Summer.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - The Diagnosis Issue
+<ul>
+ 	<li>What\\\'s Wrong: Why we sometimes fail to accurately diagnose.</li>
+ 	<li>Prevention by Prediction: A new tool helps prevent shoulder dystocia.</li>
+ 	<li>Think Again: Cognitive biases and how to avoid them.</li>
+ 	<li>Feeling Their Pain: Empathy training for doctors and nurses.</li>
+ 	<li>Diagnosis stats and facts.</li>
+ 	<li>When Patients Veer Off Their Baseline: Acute change of condition.</li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/UMIA_Brink%20Magazine_2014%20Spring.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - The Clinic Issue
+<ul>
+ 	<li>Back to Basics</li>
+ 	<li>The BIg Challenges of a Small Practice</li>
+ 	<li>Mission Accomplished</li>
+ 	<li>Set the Record Straight</li>
+ 	<li>ETC.</li>
+ 	<li>Looking Deeper, Seeing More<u></u></li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/Brink_Winter_2014.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Winter Issue</a></u></strong> - The Emergency Medicine Issue
+<ul>
+ 	<li>Pressure in Emergency Medicine</li>
+ 	<li>Communication Breakdowns in the Emergency Department</li>
+ 	<li>EHR Best Practices</li>
+ 	<li>Recognizing Drug Diversion in the Emergency Department</li>
+ 	<li>Emergency Medicine &amp; Health IT</li>
+ 	<li>Emergency Medicine Malpractice Data<u></u></li>
+</ul>
+<strong>2013</strong>
+
+<strong><u><a href=\\"https://umia.com/PDF/Brink_Fall2013.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall Issue</a></u></strong> – The Communication Issue
+<ul>
+ 	<li>Patient-and-Family-Centered Care<u></u></li>
+ 	<li>Physician Patient Communication<u></u></li>
+ 	<li>Readmission Reduction<u></u></li>
+ 	<li>High Risk Patient Hand-offs<u></u></li>
+ 	<li>Apology and Disclosure<u></u></li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/BrinkMagazine_Summer2013.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> – The Health IT Issue
+<ul>
+ 	<li>A Master Plan for Health IT</li>
+ 	<li>EHR Unintended Consequences</li>
+ 	<li>Transition to Health IT</li>
+ 	<li>Health IT and Test Management</li>
+ 	<li>Harmessing the Power of Your HER</li>
+ 	<li>Patient Portal</li>
+ 	<li>Security Risk</li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/Brink_2013_Q1.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> – The OB Issue
+<ul>
+ 	<li>Shoulder Dystocia</li>
+ 	<li>Avoiding Elective Delivery Before 39 Weeks</li>
+ 	<li>Patient Safety Culture</li>
+ 	<li>Long Term Care EHR Readiness</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>',
+    'post_title' => 'BRINK',
+    'post_excerpt' => '',
+    'post_status' => 'publish',
+    'comment_status' => 'closed',
+    'ping_status' => 'closed',
+    'post_password' => '',
+    'post_name' => 'brink',
+    'to_ping' => '',
+    'pinged' => '',
+    'post_modified' => '2018-07-19 09:44:24',
+    'post_modified_gmt' => '2018-07-19 14:44:24',
+    'post_content_filtered' => '',
+    'post_parent' => '0',
+    'guid' => 'http://umia.local/?page_id=193',
+    'menu_order' => '0',
+    'post_type' => 'page',
+    'post_mime_type' => '',
+    'comment_count' => '0',
+    'filter' => 'raw',
+  ),
+  'post_meta' => 
+  array (
+    '_wp_page_template' => 
+    array (
+      0 => 'page-template-with-sidebar.php',
+    ),
+    'wp_disable_page__is_disabled' => 
+    array (
+      0 => '0',
+    ),
+    'wp_disable_page__url' => 
+    array (
+      0 => '',
+    ),
+    'wp_role_specific_content__message' => 
+    array (
+      0 => '            ',
+    ),
+    'wp_role_specific_content__redirect' => 
+    array (
+      0 => '',
+    ),
+  ),
+  'thumbnail' => '',
+  'media_data' => '1',
+)
+2018-08-02 19:56:52#15 - SyncApiController::push():284 - post_data=array (
+  'ID' => '193',
+  'post_author' => '1',
+  'post_date' => '2018-07-19 09:44:24',
+  'post_date_gmt' => '2018-07-19 14:44:24',
+  'post_content' => 'Brink is a quarterly newsmagazine published by MMIC for MMIC and UMIA clients. Each issue provides fresh perspectives, themed feature articles, useful resources, case studies and claim reviews to help our clients practice better and safer care.
+<table border=\\"0\\" width=\\"600\\">
+<tbody>
+<tr>
+<td valign=\\"top\\" width=\\"50%\\"><strong>2018</strong>
+
+<strong><u><a href=\\"https://www.umia.com/docs/brinkmagazine/2018-02SpringSummer_UMIA_Brink_Magazine.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring/Summer Issue</a></u></strong> - Communication: To the Heart of the Matter
+<ul class=\\"cl\\">
+ 	<li>Can We Talk?</li>
+ 	<li>When News Isn\\\'t Good</li>
+ 	<li>No Longer Lost in Translation</li>
+ 	<li>Citizen Jurors</li>
+ 	<li>Are We Trending?</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/brink/2018-01FallWinter_UMIA_Brink_Magazine.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall/Winter Issue</a></u></strong> - Advanced Practice Providers
+<ul class=\\"cl\\">
+ 	<li>Enhanced Roles, Reducing Risk</li>
+ 	<li>Leading Through Collaboration</li>
+ 	<li>New Models of Care Delivery</li>
+ 	<li>Training Rural Trauma Teams</li>
+</ul>
+<strong>2017</strong>
+
+<strong><u><a href=\\"https://www.umia.com/docs/brink/Brink_Summer_2017-UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - The Opioid Dilemma
+<ul class=\\"cl\\">
+ 	<li>Rethinking Pain Management</li>
+ 	<li>One Treatment Does Not Fit All</li>
+ 	<li>Health Professionals &amp; Opioid Addition</li>
+ 	<li>When You Need to Say No</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/Brink_Spring2017_UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - Improving the Diagnostic Process
+<ul class=\\"cl\\">
+ 	<li>A 12-Step Diagnostic Process of Care Framework</li>
+ 	<li>When a Cough Isn\\\'t Just a Cough</li>
+ 	<li>Engaging the Patient Early</li>
+ 	<li>Debugging EHR Factors</li>
+ 	<li>Opening Up</li>
+ 	<li>Senior Living: Communicating Acute Change of Condition</li>
+ 	<li>Meditations on Medicine</li>
+</ul>
+<strong>2016</strong>
+
+<strong><u><a href=\\"https://umia.com/pdf/Brink_Fall2016_UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall Issue</a></u></strong>
+<ul class=\\"cl\\">
+ 	<li>Advanced Practice Providers</li>
+ 	<li>3 Strategies to Support APP\\\'s and Reduce Risks</li>
+ 	<li>Culture Shift: Leading Through Collaboration</li>
+ 	<li>APPs as Part of the Solutions</li>
+ 	<li>Claim Review: Communication Breakdown</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/UMIA_Brink_2016_Summer.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - Consent &amp; Communication
+<ul class=\\"cl\\">
+ 	<li>Consent &amp; Communication</li>
+ 	<li>The cost of Misunderstandings</li>
+ 	<li>Informed Consent: More than a Signature</li>
+ 	<li>Where Communication Breaks Down</li>
+ 	<li>Reducing risks Associated with Your EHR</li>
+ 	<li>Claim review: Failure to obtain Informed consent</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/UMIA_Brink_2016_Spring.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - The patient experience
+<ul class=\\"cl\\">
+ 	<li>Violence in the workplace</li>
+ 	<li>Denial doesn\\\'t help</li>
+ 	<li>Managing abusive patients</li>
+ 	<li>Compassion fatigue and disruptive behavior</li>
+ 	<li>HR policies to help weed out troublemakers</li>
+ 	<li>A patient\\\'s vengeance claim review</li>
+</ul>
+<strong><u><a href=\\"https://www.umia.com/pdf/Brink_Winter2016UMIA.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Winter Issue</a></u></strong> - Surgery
+<ul class=\\"cl\\">
+ 	<li>How\\\'s your social IQ!</li>
+ 	<li>How old is \\"too old\\" to practice?</li>
+ 	<li>Successful pre-op conversations</li>
+ 	<li>Lessons learned from a wrong-site surgery</li>
+ 	<li>Claim review: preeclampsia undiagnosed and untreated</li>
+</ul>
+<strong>2015</strong>
+
+<strong><u><a href=\\"https://www.umia.com/pdf/UMIA_Brink_2015_Summer.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - Outpatient risks
+<ul class=\\"cl\\">
+ 	<li>A rare glimpse of risks in the outpatient setting.</li>
+ 	<li>Your willingness to empathize can help — or hinder — a patient’s emotional healing.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>What are the risks associated with advanced practice providers?</li>
+ 	<li>Root cause analysis as a tool for clinics.</li>
+ 	<li>The value of a formalized peer review process</li>
+ 	<li>Improving patient safety by asking for feedback.</li>
+</ul>
+<strong><u><a href=\\"http://www.mmicgroup.com/pdf/UMIA_Brink_Magazine_2015_Spring.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - The patient experience
+<ul class=\\"cl\\">
+ 	<li>How we can improve access to care.</li>
+ 	<li>Learning from our own experience as patients.</li>
+ 	<li>Apologies and their impact on the patient experience.</li>
+ 	<li>Doctor-patient relationships and the EHR.</li>
+ 	<li>Engaging patients through technology.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>Be ready to support those suffering from the unsettling events.</li>
+</ul>
+<strong><u><a href=\\"http://www.mmicgroup.com/PDF/UMIA_Brink_2015_Winter.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Winter Issue</a></u></strong> - Getting through a malpractice suit
+<ul class=\\"cl\\">
+ 	<li>Facing a medical malpractice suit.</li>
+ 	<li>Overcoming barriers between doctors and patients.</li>
+ 	<li>Doctors say a little of both</li>
+ 	<li>Complying with ever-changing regulations.</li>
+ 	<li>Health care stants and facts.</li>
+</ul>
+<strong>2014</strong>
+
+<strong><u><a href=\\"https://umia.com/PDF/UMIA_Brink_Magazine_2014_Fall.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall Issue</a></u></strong> - The physician experience
+<ul class=\\"cl\\">
+ 	<li>How physician burnout affects our medical care system.</li>
+ 	<li>Open sharing and joint accountability in a Just Culture environment.</li>
+ 	<li>Managing an advanced practice provider.</li>
+ 	<li>How doctors are finding joy again in the practice of medicine.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>The positive outcomes of an effective QAPI program.</li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/UMIA_Brink%20Magazine_2014Summer.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> - The Diagnosis Issue
+<ul>
+ 	<li>What\\\'s Wrong: Why we sometimes fail to accurately diagnose.</li>
+ 	<li>Prevention by Prediction: A new tool helps prevent shoulder dystocia.</li>
+ 	<li>Think Again: Cognitive biases and how to avoid them.</li>
+ 	<li>Feeling Their Pain: Empathy training for doctors and nurses.</li>
+ 	<li>Diagnosis stats and facts.</li>
+ 	<li>When Patients Veer Off Their Baseline: Acute change of condition.</li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/UMIA_Brink%20Magazine_2014%20Spring.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> - The Clinic Issue
+<ul>
+ 	<li>Back to Basics</li>
+ 	<li>The BIg Challenges of a Small Practice</li>
+ 	<li>Mission Accomplished</li>
+ 	<li>Set the Record Straight</li>
+ 	<li>ETC.</li>
+ 	<li>Looking Deeper, Seeing More<u></u></li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/Brink_Winter_2014.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Winter Issue</a></u></strong> - The Emergency Medicine Issue
+<ul>
+ 	<li>Pressure in Emergency Medicine</li>
+ 	<li>Communication Breakdowns in the Emergency Department</li>
+ 	<li>EHR Best Practices</li>
+ 	<li>Recognizing Drug Diversion in the Emergency Department</li>
+ 	<li>Emergency Medicine &amp; Health IT</li>
+ 	<li>Emergency Medicine Malpractice Data<u></u></li>
+</ul>
+<strong>2013</strong>
+
+<strong><u><a href=\\"https://umia.com/PDF/Brink_Fall2013.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Fall Issue</a></u></strong> – The Communication Issue
+<ul>
+ 	<li>Patient-and-Family-Centered Care<u></u></li>
+ 	<li>Physician Patient Communication<u></u></li>
+ 	<li>Readmission Reduction<u></u></li>
+ 	<li>High Risk Patient Hand-offs<u></u></li>
+ 	<li>Apology and Disclosure<u></u></li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/BrinkMagazine_Summer2013.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Summer Issue</a></u></strong> – The Health IT Issue
+<ul>
+ 	<li>A Master Plan for Health IT</li>
+ 	<li>EHR Unintended Consequences</li>
+ 	<li>Transition to Health IT</li>
+ 	<li>Health IT and Test Management</li>
+ 	<li>Harmessing the Power of Your HER</li>
+ 	<li>Patient Portal</li>
+ 	<li>Security Risk</li>
+</ul>
+<strong><u><a href=\\"https://umia.com/PDF/Brink_2013_Q1.pdf\\" target=\\"_blank\\" rel=\\"noopener\\">Spring Issue</a></u></strong> – The OB Issue
+<ul>
+ 	<li>Shoulder Dystocia</li>
+ 	<li>Avoiding Elective Delivery Before 39 Weeks</li>
+ 	<li>Patient Safety Culture</li>
+ 	<li>Long Term Care EHR Readiness</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>',
+  'post_title' => 'BRINK',
+  'post_excerpt' => '',
+  'post_status' => 'publish',
+  'comment_status' => 'closed',
+  'ping_status' => 'closed',
+  'post_password' => '',
+  'post_name' => 'brink',
+  'to_ping' => '',
+  'pinged' => '',
+  'post_modified' => '2018-07-19 09:44:24',
+  'post_modified_gmt' => '2018-07-19 14:44:24',
+  'post_content_filtered' => '',
+  'post_parent' => '0',
+  'guid' => 'http://umia.local/?page_id=193',
+  'menu_order' => '0',
+  'post_type' => 'page',
+  'post_mime_type' => '',
+  'comment_count' => '0',
+  'filter' => 'raw',
+)
+2018-08-02 19:56:52#15 - SyncApiController::push():287 syncing post data Source ID#193 - "BRINK"
+2018-08-02 19:56:52#15 -  - look up target id from source id: 193
+2018-08-02 19:56:52#15 - SyncModel::get_sync_data() sql: SELECT *
+				FROM `wp_2_spectrom_sync`
+				
+				WHERE `source_content_id`=193 AND `site_key`='be63e75820b6e8963520c991e42698ee' 
+				LIMIT 1
+2018-08-02 19:56:52#15 -    sync_data: NULL
+2018-08-02 19:56:52#15 - SyncPostModel::lookup_post():43 mode=title
+2018-08-02 19:56:52#15 - SyncPostModel::lookup_post():48 look up by title=BRINK
+2018-08-02 19:56:52#15 - SyncPostModel::get_post_by_title() SELECT `ID`
+				FROM `wp_2_posts`
+				WHERE `post_title`='BRINK' AND `post_type`='page'
+				LIMIT 1: array (
+)
+2018-08-02 19:56:52#15 - SyncPostModel::lookup_post():71 target post id=0
+2018-08-02 19:56:52#15 - - found post: NULL
+2018-08-02 19:56:52#15 - SyncApiController::push():365 converting URLs (http://umia.local,https://umia.local,http%3A%2F%2Fumia.local,https%3A%2F%2Fumia.local) -> http://test1.wordpress.local
+2018-08-02 19:56:52#15 - SyncApiController::push():392 check permission for creating new post from source id#193
+2018-08-02 19:56:52#15 - SyncApiController::_process_gutenberg():502
+2018-08-02 19:56:52#15 - SyncApiController::_process_gutenberg():508 processing 8710 bytes of content
+2018-08-02 19:56:52#15 - SyncApiController::_process_gutenberg():514 found Shared Block marker at offset 
+2018-08-02 19:56:52#15 - SyncApiController::_process_gutenberg():581 updating content: Brink is a quarterly newsmagazine published by MMIC for MMIC and UMIA clients. Each issue provides fresh perspectives, themed feature articles, useful resources, case studies and claim reviews to help our clients practice better and safer care.
+<table border="0" width="600">
+<tbody>
+<tr>
+<td valign="top" width="50%"><strong>2018</strong>
+
+<strong><u><a href="https://www.umia.com/docs/brinkmagazine/2018-02SpringSummer_UMIA_Brink_Magazine.pdf" target="_blank" rel="noopener">Spring/Summer Issue</a></u></strong> - Communication: To the Heart of the Matter
+<ul class="cl">
+ 	<li>Can We Talk?</li>
+ 	<li>When News Isn't Good</li>
+ 	<li>No Longer Lost in Translation</li>
+ 	<li>Citizen Jurors</li>
+ 	<li>Are We Trending?</li>
+</ul>
+<strong><u><a href="https://www.umia.com/pdf/brink/2018-01FallWinter_UMIA_Brink_Magazine.pdf" target="_blank" rel="noopener">Fall/Winter Issue</a></u></strong> - Advanced Practice Providers
+<ul class="cl">
+ 	<li>Enhanced Roles, Reducing Risk</li>
+ 	<li>Leading Through Collaboration</li>
+ 	<li>New Models of Care Delivery</li>
+ 	<li>Training Rural Trauma Teams</li>
+</ul>
+<strong>2017</strong>
+
+<strong><u><a href="https://www.umia.com/docs/brink/Brink_Summer_2017-UMIA.pdf" target="_blank" rel="noopener">Summer Issue</a></u></strong> - The Opioid Dilemma
+<ul class="cl">
+ 	<li>Rethinking Pain Management</li>
+ 	<li>One Treatment Does Not Fit All</li>
+ 	<li>Health Professionals &amp; Opioid Addition</li>
+ 	<li>When You Need to Say No</li>
+</ul>
+<strong><u><a href="https://www.umia.com/pdf/Brink_Spring2017_UMIA.pdf" target="_blank" rel="noopener">Spring Issue</a></u></strong> - Improving the Diagnostic Process
+<ul class="cl">
+ 	<li>A 12-Step Diagnostic Process of Care Framework</li>
+ 	<li>When a Cough Isn't Just a Cough</li>
+ 	<li>Engaging the Patient Early</li>
+ 	<li>Debugging EHR Factors</li>
+ 	<li>Opening Up</li>
+ 	<li>Senior Living: Communicating Acute Change of Condition</li>
+ 	<li>Meditations on Medicine</li>
+</ul>
+<strong>2016</strong>
+
+<strong><u><a href="https://umia.com/pdf/Brink_Fall2016_UMIA.pdf" target="_blank" rel="noopener">Fall Issue</a></u></strong>
+<ul class="cl">
+ 	<li>Advanced Practice Providers</li>
+ 	<li>3 Strategies to Support APP's and Reduce Risks</li>
+ 	<li>Culture Shift: Leading Through Collaboration</li>
+ 	<li>APPs as Part of the Solutions</li>
+ 	<li>Claim Review: Communication Breakdown</li>
+</ul>
+<strong><u><a href="https://www.umia.com/pdf/UMIA_Brink_2016_Summer.pdf" target="_blank" rel="noopener">Summer Issue</a></u></strong> - Consent &amp; Communication
+<ul class="cl">
+ 	<li>Consent &amp; Communication</li>
+ 	<li>The cost of Misunderstandings</li>
+ 	<li>Informed Consent: More than a Signature</li>
+ 	<li>Where Communication Breaks Down</li>
+ 	<li>Reducing risks Associated with Your EHR</li>
+ 	<li>Claim review: Failure to obtain Informed consent</li>
+</ul>
+<strong><u><a href="https://www.umia.com/pdf/UMIA_Brink_2016_Spring.pdf" target="_blank" rel="noopener">Spring Issue</a></u></strong> - The patient experience
+<ul class="cl">
+ 	<li>Violence in the workplace</li>
+ 	<li>Denial doesn't help</li>
+ 	<li>Managing abusive patients</li>
+ 	<li>Compassion fatigue and disruptive behavior</li>
+ 	<li>HR policies to help weed out troublemakers</li>
+ 	<li>A patient's vengeance claim review</li>
+</ul>
+<strong><u><a href="https://www.umia.com/pdf/Brink_Winter2016UMIA.pdf" target="_blank" rel="noopener">Winter Issue</a></u></strong> - Surgery
+<ul class="cl">
+ 	<li>How's your social IQ!</li>
+ 	<li>How old is "too old" to practice?</li>
+ 	<li>Successful pre-op conversations</li>
+ 	<li>Lessons learned from a wrong-site surgery</li>
+ 	<li>Claim review: preeclampsia undiagnosed and untreated</li>
+</ul>
+<strong>2015</strong>
+
+<strong><u><a href="https://www.umia.com/pdf/UMIA_Brink_2015_Summer.pdf" target="_blank" rel="noopener">Summer Issue</a></u></strong> - Outpatient risks
+<ul class="cl">
+ 	<li>A rare glimpse of risks in the outpatient setting.</li>
+ 	<li>Your willingness to empathize can help — or hinder — a patient’s emotional healing.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>What are the risks associated with advanced practice providers?</li>
+ 	<li>Root cause analysis as a tool for clinics.</li>
+ 	<li>The value of a formalized peer review process</li>
+ 	<li>Improving patient safety by asking for feedback.</li>
+</ul>
+<strong><u><a href="http://www.mmicgroup.com/pdf/UMIA_Brink_Magazine_2015_Spring.pdf" target="_blank" rel="noopener">Spring Issue</a></u></strong> - The patient experience
+<ul class="cl">
+ 	<li>How we can improve access to care.</li>
+ 	<li>Learning from our own experience as patients.</li>
+ 	<li>Apologies and their impact on the patient experience.</li>
+ 	<li>Doctor-patient relationships and the EHR.</li>
+ 	<li>Engaging patients through technology.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>Be ready to support those suffering from the unsettling events.</li>
+</ul>
+<strong><u><a href="http://www.mmicgroup.com/PDF/UMIA_Brink_2015_Winter.pdf" target="_blank" rel="noopener">Winter Issue</a></u></strong> - Getting through a malpractice suit
+<ul class="cl">
+ 	<li>Facing a medical malpractice suit.</li>
+ 	<li>Overcoming barriers between doctors and patients.</li>
+ 	<li>Doctors say a little of both</li>
+ 	<li>Complying with ever-changing regulations.</li>
+ 	<li>Health care stants and facts.</li>
+</ul>
+<strong>2014</strong>
+
+<strong><u><a href="https://umia.com/PDF/UMIA_Brink_Magazine_2014_Fall.pdf" target="_blank" rel="noopener">Fall Issue</a></u></strong> - The physician experience
+<ul class="cl">
+ 	<li>How physician burnout affects our medical care system.</li>
+ 	<li>Open sharing and joint accountability in a Just Culture environment.</li>
+ 	<li>Managing an advanced practice provider.</li>
+ 	<li>How doctors are finding joy again in the practice of medicine.</li>
+ 	<li>Health care stats and facts.</li>
+ 	<li>The positive outcomes of an effective QAPI program.</li>
+</ul>
+<strong><u><a href="https://umia.com/PDF/UMIA_Brink%20Magazine_2014Summer.pdf" target="_blank" rel="noopener">Summer Issue</a></u></strong> - The Diagnosis Issue
+<ul>
+ 	<li>What's Wrong: Why we sometimes fail to accurately diagnose.</li>
+ 	<li>Prevention by Prediction: A new tool helps prevent shoulder dystocia.</li>
+ 	<li>Think Again: Cognitive biases and how to avoid them.</li>
+ 	<li>Feeling Their Pain: Empathy training for doctors and nurses.</li>
+ 	<li>Diagnosis stats and facts.</li>
+ 	<li>When Patients Veer Off Their Baseline: Acute change of condition.</li>
+</ul>
+<strong><u><a href="https://umia.com/PDF/UMIA_Brink%20Magazine_2014%20Spring.pdf" target="_blank" rel="noopener">Spring Issue</a></u></strong> - The Clinic Issue
+<ul>
+ 	<li>Back to Basics</li>
+ 	<li>The BIg Challenges of a Small Practice</li>
+ 	<li>Mission Accomplished</li>
+ 	<li>Set the Record Straight</li>
+ 	<li>ETC.</li>
+ 	<li>Looking Deeper, Seeing More<u></u></li>
+</ul>
+<strong><u><a href="https://umia.com/PDF/Brink_Winter_2014.pdf" target="_blank" rel="noopener">Winter Issue</a></u></strong> - The Emergency Medicine Issue
+<ul>
+ 	<li>Pressure in Emergency Medicine</li>
+ 	<li>Communication Breakdowns in the Emergency Department</li>
+ 	<li>EHR Best Practices</li>
+ 	<li>Recognizing Drug Diversion in the Emergency Department</li>
+ 	<li>Emergency Medicine &amp; Health IT</li>
+ 	<li>Emergency Medicine Malpractice Data<u></u></li>
+</ul>
+<strong>2013</strong>
+
+<strong><u><a href="https://umia.com/PDF/Brink_Fall2013.pdf" target="_blank" rel="noopener">Fall Issue</a></u></strong> – The Communication Issue
+<ul>
+ 	<li>Patient-and-Family-Centered Care<u></u></li>
+ 	<li>Physician Patient Communication<u></u></li>
+ 	<li>Readmission Reduction<u></u></li>
+ 	<li>High Risk Patient Hand-offs<u></u></li>
+ 	<li>Apology and Disclosure<u></u></li>
+</ul>
+<strong><u><a href="https://umia.com/PDF/BrinkMagazine_Summer2013.pdf" target="_blank" rel="noopener">Summer Issue</a></u></strong> – The Health IT Issue
+<ul>
+ 	<li>A Master Plan for Health IT</li>
+ 	<li>EHR Unintended Consequences</li>
+ 	<li>Transition to Health IT</li>
+ 	<li>Health IT and Test Management</li>
+ 	<li>Harmessing the Power of Your HER</li>
+ 	<li>Patient Portal</li>
+ 	<li>Security Risk</li>
+</ul>
+<strong><u><a href="https://umia.com/PDF/Brink_2013_Q1.pdf" target="_blank" rel="noopener">Spring Issue</a></u></strong> – The OB Issue
+<ul>
+ 	<li>Shoulder Dystocia</li>
+ 	<li>Avoiding Elective Delivery Before 39 Weeks</li>
+ 	<li>Patient Safety Culture</li>
+ 	<li>Long Term Care EHR Readiness</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+2018-08-02 19:56:52#15 - SyncApiController::push():408  performing sync
+2018-08-02 19:56:52#15 - SyncModel::get_sync_data() sql: SELECT *
+				FROM `wp_2_spectrom_sync`
+				
+				WHERE `source_content_id`=193 AND `site_key`='be63e75820b6e8963520c991e42698ee' 
+				LIMIT 1
+2018-08-02 19:56:52#15 - SyncApiController::push():481 handling taxonomies
+2018-08-02 19:56:52#15 - SyncApiController::_process_taxonomies(8)
+2018-08-02 19:56:52#15 - SyncApiController::_process_taxonomies() found taxonomy information: array (
+)
+2018-08-02 19:56:52#15 - SyncApiController::_process_taxonomies() looking for terms to remove
+2018-08-02 19:56:52#15 - SyncApiController::push():492 calling action 'spectrom_sync_push_content'
+2018-08-02 19:56:52#15 - SyncApiResponse::__toString() returning response data: '{"error_code":0,"session_timeout":1,"has_errors":0,"success":1,"data":{"access_nonce":"b352abd588","auth_cookie":"Tyler|1533243412|v9r4HuIY3uJliMN067kwAXtw9wpO6PwqzVSUgMyeYLc|51fc1815a5e89769b4455d9e055f2fb5d66b6e70795a251b0cad6c4144a670f9","user_id":1,"site_key":"38ab70a5531c3b38d7141570325f95af","post_id":8}}'

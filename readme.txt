@@ -111,6 +111,12 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.4.1 - Aug 2, 2018 =
+* enhancement: updated configuration of allowed Roles for WPSiteSync UI. Can now allow custom Roles. (Thanks Randy K.)
+* enhancement: disable redirect by f(x) Private Site plugin on WPSiteSync API endpoint.
+* enhancement: detect and recover from missing file attachments (Thanks Matt B.)
+* enhancement: adjust file path when working with attachments on MultiSite installs.
+
 = 1.4 - Jul 10, 2018 =
 * fix: fix conversion of url to file path when Pushing media content (Thanks Jocelyn M.)
 * fix: fix conversion of mis-matched schemes in Source Content (Thanks Jocelyn M.)

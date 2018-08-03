@@ -366,7 +366,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' got an error from the Target: ' .
 	 */
 	private function _add_queue($action, $data)
 	{
-SyncDebug::log(__METHOD__.'() adding "' . $action . '" to queue with ' . var_export($data, TRUE));
+SyncDebug::log(__METHOD__.'() adding "' . $action . '" to queue'); // with ' . var_export($data, TRUE));
 		$this->_queue[] = array('action' => $action, 'data' => $data);
 	}
 
@@ -726,8 +726,8 @@ SyncDebug::log(__METHOD__.'() id #' . $post_id);
 
 		// sometimes the insert media into post doesn't add a space...this will hopefully fix that
 		$content = str_replace('alt="', ' alt="', $content);
-		if (empty($content))
-			return TRUE;
+//		if (empty($content))	// need to continue even with empty content. otherwise featured image doesn't get processed
+//			return TRUE;
 
 		// TODO: add try..catch
 		// TODO: can we use get_media_embedded_in_content()?
@@ -743,9 +743,8 @@ SyncDebug::log(__METHOD__.'() id #' . $post_id);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post thumb id=' . $post_thumbnail_id);
 		$this->_sent_images = array();			// list of images already sent. Used by _send_image() to not send the same image twice
 
-		// TODO: use PHP_URL_HOST parameter
-		$url = parse_url(get_bloginfo('url'));
-		$this->_source_domain = $url['host'];
+		// set source domain; used to detect media elements to be added to push queue
+		$this->set_source_domain(site_url('url'));
 
 		// get all known children of the post
 		$args = array(
@@ -843,8 +842,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - found pdf attachment id ' . $at
 		}
 
 		// handle the featured image
-		if ('' !== $post_thumbnail_id) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' featured image:');
+		if (0 !== $post_thumbnail_id) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' featured image: ' . $post_thumbnail_id);
 			$img = wp_get_attachment_image_src($post_thumbnail_id, 'full');
 if (FALSE === $img) SyncDebug::log(__METHOD__.'():' . __LINE__ . ' wp_get_attachment_image_src() failed');
 			// check image URL and see if it doesn't match Source domain. #131
@@ -854,7 +853,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image file not on Source domain')
 				// image is not from Source domain- stored on CDN or S3? Get image source from GUID
 				$att_post = get_post($post_thumbnail_id);
 				if (NULL !== $att_post) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post guid: ' . $att_post->guid);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post guid: ' . $att_post->guid . ' type=' . $att_post->post_type);
 					$img[0] = $att_post->guid;
 				}
 			}
@@ -1005,8 +1004,15 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' *** no image file sent to target'
 	{
 SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' featured=' . ($featured ? 'TRUE' : 'FALSE') . ' attach_id=' . $attach_id, TRUE);
 
-		if (!file_exists($file_path))
-			SyncDebug::log(__METHOD__.'():' . __LINE__ . ' file "' . $file_path . '" not found');
+		if (!file_exists($file_path) && FALSE !== strpos($file_path, '%')) {
+			// TODO: fix url encoding in file path bb#11
+		}
+			
+		if (!file_exists($file_path)) {
+			// no image - no need to send update_media API request #167
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' file "' . $file_path . '" not found');
+			return;
+		}
 		$attach_post = get_post($attach_id, OBJECT);
 		$attach_alt = get_post_meta($attach_id, '_wp_attachment_image_alt', TRUE);
 		$img_date = filemtime($file_path);
@@ -1030,7 +1036,8 @@ SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' f
 		);
 		// allow extensions to include data in upload_media operations
 		$post_fields = apply_filters('spectrom_sync_upload_media_fields', $post_fields);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image post fields: ' . var_export($post_fields, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image post ' . $post_fields['img_path'] . $post_fields['img_name']);
+//var_export($post_fields, TRUE));
 
 //$post_fields['content-len'] = strlen($post_fields['contents']);
 //$post_fields['content-type'] = gettype($post_fields['contents']);
@@ -1054,6 +1061,15 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image post fields: ' . var_export
 	private function _get_image_contents($file_path)
 	{
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' path=' . $file_path);
+
+		// adjust file path if running within multisite #167
+		if (is_multisite()) {
+			$to_dir = '/wp-content/blogs.dir/' . get_current_blog_id . '/';
+			$file_path = str_replace('/wp-content/files/', $to_dir, $file_path);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adjusted multisite file path to ' . $file_path);
+		}
+
+		// TODO: rework to use CURLFile class and @filename specifier (for PHP < 5.5) to save memory on large files #165
 
 		// first, try file_get_contents()
 		$contents = file_get_contents($file_path);

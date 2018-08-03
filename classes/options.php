@@ -9,6 +9,13 @@ class SyncOptions
 	private static $_options = NULL;
 	private static $_dirty = FALSE;
 
+	private static $_constraints = array(
+		'match_mode' => array('title', 'slug', 'id'),
+		'min_role' => array('author', 'editor', 'administrator'),
+		'roles' => '|author|editor|administrator|',
+	);
+	const ROLE_DELIMITER = '|';
+	
 	/*
 	 * Options are:
 	 // TODO: rename to 'target'
@@ -20,10 +27,10 @@ class SyncOptions
 	 * 'auth' = 1 for username/password authenticated; otherwise 0
 	 * 'strict' = 1 for strict mode; otherwise 0
 	 * 'salt' = salt value used for authentication
-	 * 'min_role' = minimum role allowed to perform SYNC operations
 	 * 'remove' = remove settings/tables on plugin deactivation
 	 * 'match_mode' = method for matching content on Target: 'title', 'slug', 'id'
 	 * 'min_role' = minimum role required to be able to perform Sync operations #122
+	 * 'roles' = Roles allowed to perform Sync operations
 	 */
 
 	/**
@@ -31,8 +38,12 @@ class SyncOptions
 	 */
 	private static function _load_options()
 	{
-		if (NULL === self::$_options)
-			self::$_options = get_option(self::OPTION_NAME, array());
+		if (NULL !== self::$_options)
+			return;
+		self::$_options = get_option(self::OPTION_NAME, array());
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_options, TRUE));
+		if (FALSE === self::$_options)
+			self::$_options = array();
 
 		// perform fixup / cleanup on option values...migrating from previous configuration settings
 		$defaults = array(
@@ -44,13 +55,31 @@ class SyncOptions
 			'auth' => 0,
 			'strict' => '1',
 			'salt' => '',
-			'min_role' => '',
 			'remove' => '0',
 			'match_mode' => 'title',
 			'min_role' => 'author',
+			'roles' => '|author|editor|administrator|',
 		);
 
 		self::$_options = array_merge($defaults, self::$_options);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_options, TRUE));
+
+		// adjust settings for roles if missing (newly added setting not configured; use defaults) #166
+		if (empty(self::$_options['roles']) || empty(self::$_options['min_role'])) {
+			switch (self::$_options['min_role']) {
+			case 'author':
+			default:
+				self::$_options['roles'] = '|author|editor|administrator|';
+				break;
+			case 'editor':
+				self::$_options['rolse'] = '|editor|administrator|';
+				break;
+			case 'admin':
+				self::$_options['roles'] = '|administrator|';
+				break;
+			}
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; setting to: ' . self::$_options['roles']);
+		}
 	}
 
 	/**
@@ -102,6 +131,15 @@ class SyncOptions
 	}
 
 	/**
+	 * Returns an array describing known good values for each setting name
+	 * @return type
+	 */
+	public static function get_constraints()
+	{
+		return self::$_constraints;
+	}
+
+	/**
 	 * Checks to see if the site has a valid authentication to a Target site
 	 * @return boolean TRUE if site is authorized; otherwise FALSE
 	 */
@@ -119,9 +157,34 @@ class SyncOptions
 	 */
 	public static function has_cap()
 	{
-		$min_role = self::get('min_role');
+		$min_role = self::get('min_role', 'author');
+		$roles = self::get('roles', '');
+		if (empty($roles)) {
+			// if the roles are empty, adjust setting based on default roles from v1.4
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; min_role=' . var_export($min_role, TRUE));
+			switch ($min_role) {
+				case 'administrator':
+				default:
+					$roles = '|administrator|';
+					break;
+				case 'editor':
+					$roles = '|editor|administrator|';
+					break;
+				case 'author':
+					$roles = '|author|editor|administrator|';
+					break;
+			}
+		}
 		$current_user = wp_get_current_user();
-
+		// check to see if current user's Role is in list of allowed roles #166
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles=' . var_export($roles, TRUE));
+		foreach ($current_user->roles as $role)
+			if (FALSE !== strpos($roles, self::ROLE_DELIMITER . $role . self::ROLE_DELIMITER)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found matching role "' . $role . '"');
+				return TRUE;
+			}
+		return FALSE;
+#####
 		switch ($min_role) {
 		case 'administrator':
 			if (in_array($min_role, $current_user->roles))
@@ -140,7 +203,7 @@ class SyncOptions
 	}
 
 	/**
-	 * Updates the local copy of the option data
+	 * Updates the local copy of the option data. Will not update properties that are not already in option array.
 	 * @param string $name The name of the Sync option to update
 	 * @param mixed $value The value to store with the name
 	 */
@@ -148,8 +211,15 @@ class SyncOptions
 	{
 		self::_load_options();
 
-		self::$_options[$name] = $value;
-		self::$_dirty = TRUE;
+		// don't allow setting unknown property names
+		if (isset(self::$_options[$name])) {
+			if (isset(self::$_constraints[$name]) && !in_array($value, self::$_constraints)) {
+				// current value is not a known good value for this property; abort
+				return;
+			}
+			self::$_options[$name] = $value;
+			self::$_dirty = TRUE;
+		}
 	}
 
 	/**

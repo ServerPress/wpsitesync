@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.4
+Version: 1.4.1
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,7 +24,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.4';
+		const PLUGIN_VERSION = '1.4.1';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
@@ -50,7 +50,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 			// don't need the wp_ajax_noprov callback- AJAX calls are always within the admin
 			add_action('wp_ajax_spectrom_sync', array($this, 'check_ajax_query'));
 
-			add_action('plugins_loaded', array($this, 'plugins_loaded'));
+			add_action('plugins_loaded', array($this, 'plugins_loaded'), 1);
 
 			// the following are needed during add-on updates to fix problem with long file names on Windows
 			add_filter('wp_unique_filename', array($this, 'filter_unique_filename'), 10, 4);
@@ -202,6 +202,8 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 		 */
 		public static function check_updates()
 		{
+			// TODO: optimize by doing checks only once every 8 hours
+
 			// load updater class
 			if (!class_exists('EDD_SL_Plugin_Updater_Sync', FALSE)) {
 				$file = dirname(__FILE__) . '/install/pluginupdater.php';

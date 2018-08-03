@@ -120,16 +120,15 @@ SyncDebug::log(__METHOD__.'() sql=' . $sql);
 		if (NULL === $site_key)
 			$site_key = SyncOptions::get('site_key');
 
-		$where = '';
+		$join = $where = '';
 		if (NULL !== $type) {
 			$type = sanitize_key($type);
 			$where = " AND `content_type`='{$type}' ";
 		}
 
-		$join = $where = '';
 		if ($assoc) {
 			$join = " LEFT JOIN `{$wpdb->posts}` ON `{$wpdb->posts}`.`ID`=`target_content_id` ";
-			$where = " AND `{$wpdb->posts}`.`ID` IS NOT NULL ";
+			$where .= " AND `{$wpdb->posts}`.`ID` IS NOT NULL ";
 		}
 		$query = "SELECT *
 				FROM `{$this->_sync_table}`

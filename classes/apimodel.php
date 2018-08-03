@@ -213,6 +213,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ITSEC_Core class');
 			rocket_define_donotminify_constants( true );
 			rocket_define_donotasync_css_constant( true );
 		}
+		// unhook f(x) Private Site
+		if (function_exists('fx_private_site_plugins_loaded'))
+			add_action('wp_loaded', array($this, 'unhook_fx_private_site'));
 
 //die('inside ' . __METHOD__. '():' . __LINE__ . ' set=' . var_export($settings, TRUE));
 	}
@@ -265,6 +268,12 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' option=' . var_export($option, TR
 		$value = array(); // 'a:0:{}';
 		return $value;
 	} */
+	public function unhook_fx_private_site()
+	{
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' unhook "fx_private_site_plugins_loaded()" function');
+error_log(__METHOD__.'():' . __LINE__ . ' unhook "fx_private_site_plugins_loaded()" function');
+		remove_action('template_redirect', 'fx_private_site_please_log_in', 0);
+	}
 }
 
 // EOF

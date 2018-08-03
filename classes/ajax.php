@@ -8,7 +8,7 @@ class SyncAjax extends SyncInput
 	public function __construct()
 	{
 		// add user data on a high priority - in case other add-ons want to change/modify it
-//		add_filter('spectrom_sync_api_request', array(&$this, 'add_user_info'), 1, 3);
+//		add_filter('spectrom_sync_api_request', array($this, 'add_user_info'), 1, 3);
 	}
 
 	/**

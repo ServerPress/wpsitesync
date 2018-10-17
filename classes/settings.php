@@ -577,8 +577,8 @@ class SyncSettings extends SyncInput
 	 */
 	public function validate_settings($values)
 	{
-SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' values=' . var_export($values, TRUE));
+//SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' values=' . var_export($values, TRUE));
 		if (!current_user_can('manage_options'))
 			return array();
 
@@ -597,7 +597,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' values=' . var_export($values, TR
 			$values['roles'] = array('administrator' => 'on');
 
 		foreach ($values as $key => $value) {
-SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
+//SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
 			if (empty($values[$key]) && 'password' === $key) {
 				// ignore this so that passwords are not required on every settings update
 			} else {
@@ -633,16 +633,16 @@ SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
 							$out[$key] = $settings['username'];
 					}
 				} else if ('roles' === $key) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' POST=' . var_export($_POST, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' POST=' . var_export($_POST, TRUE));
 					$roles = array();
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' value=' . var_export($value, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' value=' . var_export($value, TRUE));
 					foreach ($value as $role => $on) {
 						$roles[] = $role;
 					}
 					if (!in_array('administrator', $roles))
 						$roles[] = 'administrator';				// always force administrator access
 					$out[$key] = SyncOptions::ROLE_DELIMITER . implode(SyncOptions::ROLE_DELIMITER, $roles) . SyncOptions::ROLE_DELIMITER;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles: ' . $out[$key]);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles: ' . $out[$key]);
 				} else if (0 === strlen(trim($value))) {
 					if (!$missing_error) {
 						add_settings_error('sync_options_group', 'missing-field', __('All fields are required.', 'wpsitesynccontent'));
@@ -670,18 +670,18 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles: ' . $out[$key]);
 		if (!empty($out['password']) || $re_auth) {
 			$out['auth'] = 0;
 
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authenticating with data ' . var_export($out, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authenticating with data ' . var_export($out, TRUE));
 			$api = new SyncApiRequest();
 			$res = $api->api('auth', $out);
 			if (!is_wp_error($res)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . '  response from auth request: ' . var_export($res, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . '  response from auth request: ' . var_export($res, TRUE));
 				if (isset($res->response->success) && $res->response->success) {
 					$out['auth'] = 1;
 					$out['target_site_key'] = $res->response->data->site_key;
 //SyncDebug::log(__METHOD__.'() got token: ' . $res->response->data->token);
 				} else {
 					// authentication failure response from Target- report this to user
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authentication response from Target');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' authentication response from Target');
 					$msg = SyncApiRequest::error_code_to_string($res->error_code);
 					$msg .= ' <a href="https://wpsitesync.com/knowledgebase/wpsitesync-error-messages/#error' . $res->error_code . '" target="_blank" style="text-decoration:none"><span class="dashicons dashicons-info"></span></a>';
 					add_settings_error('sync_options_group', 'auth-error',

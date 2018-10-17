@@ -21,6 +21,9 @@ class SyncAdmin
 
 		add_action('before_delete_post', array($this, 'before_delete_post'));
 
+		if (is_multisite())
+			add_action('admin_init', array($this, 'check_network_activation'));
+
 		// TODO: only init if running settings page
 		SyncSettings::get_instance();
 	}
@@ -50,6 +53,21 @@ class SyncAdmin
 			printf($notice, admin_url('options-general.php?page=sync'));
 			echo '</div>';
 		}
+	}
+
+	/**
+	 * Checks that the WPSiteSync plugin has been activated on all sites
+	 */
+	public function check_network_activation()
+	{
+		// if option does not exist, plugin was not set to be network active
+		if (FALSE === get_site_option('spectrom_sync_activated', FALSE))
+			return FALSE;
+
+		// load installer class to perform activation
+		include_once(dirname(__DIR__) . '/install/activate.php');
+		$activate = new SyncActivate();
+		$activate->plugin_activate_check();
 	}
 
 	/**
@@ -233,7 +251,7 @@ class SyncAdmin
 	public function get_content_details()
 	{
 		global $post;
-		$meta_key = '_spectrom_sync_details_' . sanitize_key(SyncOptions::get('target'));
+		$meta_key = '_spectrom_sync_details_' . sanitize_key(parse_url(SyncOptions::get('target'), PHP_URL_HOST));
 
 		// check to see if the API call should be made
 		$run_api = FALSE;
@@ -252,7 +270,7 @@ SyncDebug::log(__METHOD__.'() post id=' . $post->ID);
 			$target_post_id = 0;
 
 			if (NULL === ($sync_data = $sync_model->get_sync_target_post($post->ID, SyncOptions::get('target_site_key')))) {
-SyncDebug::log(__METHOD__.'() data has not been previously syncd');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data has not been previously sync\'d');
 				$content_data = array('message' => __('This Content has not yet been Sync\'d. No details to show.', 'wpsitesynccontent'));
 			} else {
 				$target_post_id = $sync_data->target_content_id;
@@ -291,21 +309,34 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - result data: ' . var_export($re
 
 				if (isset($response_body) && isset($response_body->data)) {
 					$response_data = $response_body->data;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - target data: ' . var_export($response_data, TRUE));
-					// take the data returned from the API and
-					$content_data = array(
-						'target' => SyncOptions::get('target'),
-						'source_post_id' => $post->ID,
-						'target_post_id' => $response_data->target_post_id, // $target_post_id,
-						'post_title' => $response_data->post_title, // $target_post->post_title,
-						'post_author' => $response_data->post_author, // $response_body->data->username,
-						'feat_img' => isset($response_data->feat_img) ? $response_data->feat_img : '',
-						'modified' => $response_data->modified, // $target_post->post_modified_gmt,
-						'content' => substr($response_data->content, 0, 200) . '...', // substr(strip_tags($target_post->post_content), 0, 200) . '...',
-						'content_timeout' => current_time('timestamp') + self::CONTENT_TIMEOUT,
-					);
-					$meta_data = json_encode($content_data);
-					update_post_meta($post->ID, $meta_key, $meta_data);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - response data: ' . var_export($response_data, TRUE));
+					// check for errors in 'getinfo' API call #181
+					if (0 !== $response_body->error_code) {
+						$content_data = array(
+							'message' => sprintf(__('Error obtaining Target information: %1$s', 'wpsitesynccontent'), $response_body->error_message)
+						);
+					// check for missing Target information as a fallback #181
+					} else if (!isset($response_data->target_post_id)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response missing post id. cannot show details');
+						$content_data = array(
+							'message' => __('Error in Target content. API call failed.', 'wpsitesynccontent')
+						);
+					} else {
+						// take the data returned from the API and prepare it for the View
+						$content_data = array(
+							'target' => SyncOptions::get('target'),
+							'source_post_id' => $post->ID,
+							'target_post_id' => $response_data->target_post_id, // $target_post_id,
+							'post_title' => $response_data->post_title, // $target_post->post_title,
+							'post_author' => $response_data->post_author, // $response_body->data->username,
+							'feat_img' => isset($response_data->feat_img) ? $response_data->feat_img : '',
+							'modified' => $response_data->modified, // $target_post->post_modified_gmt,
+							'content' => $response_data->content . '...', // substr(strip_tags($target_post->post_content), 0, 200) . '...',
+							'content_timeout' => current_time('timestamp') + self::CONTENT_TIMEOUT,
+						);
+						$meta_data = json_encode($content_data);
+						update_post_meta($post->ID, $meta_key, $meta_data);
+					}
 				} else {
 					$content_data = array(
 						'message' => __('Error obtaining Content Details', 'wpsitesynccontent')

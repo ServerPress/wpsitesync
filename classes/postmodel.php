@@ -50,11 +50,17 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' look up by title=' . $post_data['
 			if (NULL !== $post)
 				$target_post_id = $post->ID;
 			break;
+
 		case 'slug':
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' look up by slug=' . $post_data['post_name']);
-			// TODO: use get_page_by_path() instead
+			$post_name = $post_data['post_name'];
+			if (empty($post_name)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' `post_name` is empty, looking up by title: ' . $post_data['post_title']);
+				$post_name = sanitize_title($post_data['post_title']);
+			}
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' lookup post name "' . $post_name . '"');
 			$args = array(
-				'name' => $post_data['post_name'],
+				'name' => $post_name,
 				'post_type' => $post_data['post_type'],
 				'post_status' => 'any',
 				'numberposts' => 1,
@@ -62,7 +68,15 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' look up by slug=' . $post_data['p
 			$posts = get_posts($args);
 			if ($posts)
 				$target_post_id = abs($posts[0]->ID);
+
+			if (0 === $target_post_id) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not found by slug. search by title "' . $post_data['post_title'] . '"');
+				$post = $this->get_post_by_title($post_data['post_title'], $post_data['post_type']);
+				if (NULL !== $post)
+					$target_post_id = $post->ID;
+			}
 			break;
+
 		case 'id':
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' look up by ID=' . $post_data['ID']);
 			$target_post_id = abs($post_data['ID']);

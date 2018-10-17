@@ -164,7 +164,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($data, TRUE))
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending API request to ' . $url, TRUE);
 
 		$remote_args = apply_filters('spectrom_sync_api_arguments', $remote_args, $action);
-SyncDebug::log('  sending data array: ' . SyncDebug::arr_dump($remote_args));
+$scrubbed_args = array_merge($remote_args, array('username' => 'xxx', 'password' => 'xxx'));
+SyncDebug::log('  sending data array: ' . SyncDebug::arr_dump($scrubbed_args));
 
 		$request = wp_remote_post($url, $remote_args);
 		if (is_wp_error($request)) {
@@ -724,21 +725,28 @@ SyncDebug::log(__METHOD__.'() id #' . $post_id);
 //		if (empty($content))
 //			return;
 
-		// sometimes the insert media into post doesn't add a space...this will hopefully fix that
-		$content = str_replace('alt="', ' alt="', $content);
-//		if (empty($content))	// need to continue even with empty content. otherwise featured image doesn't get processed
-//			return TRUE;
+		if (empty($content)) {		// need to continue even with empty content. otherwise featured image doesn't get processed
+			$xml = NULL;			// use this to denote empty content and skip looping through <img> and <a> tags #180
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' content is empty, not searching <img> and <a> tags');
+		} else {
+			// sometimes the insert media into post doesn't add a space...this will hopefully fix that
+			$content = str_replace('alt="', ' alt="', $content);
 
-		// TODO: add try..catch
-		// TODO: can we use get_media_embedded_in_content()?
-		$xml = new DOMDocument();
-		// TODO: this is throwing errors on BB content:
-		// PHP Warning:  DOMDocument::loadHTML(): Tag svg invalid in Entity, line: 9 in wpsitesynccontent/classes/apirequest.php on line 675
-		// PHP Warning:  DOMDocument::loadHTML(): Tag circle invalid in Entity, line: 10 in wpsitesynccontent/classes/apirequest.php on line 675
-		// PHP Warning:  DOMDocument::loadHTML(): Tag circle invalid in Entity, line: 11 in wpsitesynccontent/classes/apirequest.php on line 675
-		$xml->loadHTML($content);
+			try {
+				// TODO: can we use get_media_embedded_in_content()?
+				$xml = new DOMDocument();
 
-		// set up some things before content parsing
+				// TODO: this is throwing errors on BB content:
+				// PHP Warning:  DOMDocument::loadHTML(): Tag svg invalid in Entity, line: 9 in wpsitesynccontent/classes/apirequest.php on line 675
+				// PHP Warning:  DOMDocument::loadHTML(): Tag circle invalid in Entity, line: 10 in wpsitesynccontent/classes/apirequest.php on line 675
+				// PHP Warning:  DOMDocument::loadHTML(): Tag circle invalid in Entity, line: 11 in wpsitesynccontent/classes/apirequest.php on line 675
+				$xml->loadHTML($content);
+			} catch (Exception $ex) {
+				$xml = NULL;		// any errors in parsing; mark it as empty content so processing continues #180
+			}
+		}
+
+		// set up some things before processing content
 		$post_thumbnail_id = abs(get_post_thumbnail_id($post_id));
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post thumb id=' . $post_thumbnail_id);
 		$this->_sent_images = array();			// list of images already sent. Used by _send_image() to not send the same image twice
@@ -746,98 +754,107 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post thumb id=' . $post_thumbnail
 		// set source domain; used to detect media elements to be added to push queue
 		$this->set_source_domain(site_url('url'));
 
-		// get all known children of the post
-		$args = array(
-			'post_parent' => $post_id,
-			'post_status' => 'any',
-			'post_type' => 'attachment',
-		);
-		$post_children = get_children($args, OBJECT);
+		if (NULL !== $xml) {
+			// only used in processing <a> tags. Don't need to do this if content is empty #180
+			// get all known children of the post
+			$args = array(
+				'post_parent' => $post_id,
+				'post_status' => 'any',
+				'post_type' => 'attachment',
+			);
+			$post_children = get_children($args, OBJECT);
 //SyncDebug::log(__METHOD__.'() children=' . var_export($post_children, TRUE));
-		$attach_model = new SyncAttachModel();
+
+			// only used in processing <img> tags. Don't need to do this if content is empty #180
+			$attach_model = new SyncAttachModel();
+		}
 
 		// search for <img> tags within content
-		$tags = $xml->getElementsByTagName('img');
+		if (NULL !== $xml) {						// don't look for <img> elements if content is empty #180
+			$tags = $xml->getElementsByTagName('img');
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . $tags->length . ' <img> tags');
 
-		// loop through each <img> tag and send them to Target
-		for ($i = $tags->length - 1; $i >= 0; $i--) {
-			$media_node = $tags->item($i);
-			$src_attr = $media_node->getAttribute('src');
-			$class_attr = $media_node->getAttribute('class');
+			// loop through each <img> tag and send them to Target
+			for ($i = $tags->length - 1; $i >= 0; $i--) {
+				$media_node = $tags->item($i);
+				$src_attr = $media_node->getAttribute('src');
+				$class_attr = $media_node->getAttribute('class');
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' <img src="' . $src_attr . '" class="' . $class_attr . '" ...>');
 
-			$classes = explode(' ', $class_attr);
-			$img_id = 0;
-			$img_file = NULL;
+				$classes = explode(' ', $class_attr);
+				$img_id = 0;
+				$img_file = NULL;
 
-			// try to use class= attribute to get original image id and send that
-			foreach ($classes as $class) {
-				if ('wp-image-' === substr($class, 0, 9)) {
-					$img_id = abs(substr($class, 9));
-					$img_post = get_post($img_id, OBJECT);
-					// make sure it's a valid post and 'attachment ' type #162
-					if (NULL !== $img_post && 'attachment' === $img_post->post_type) {
-						// TODO: check image name as well?
-						$img_file = $img_post->guid;
+				// try to use class= attribute to get original image id and send that
+				foreach ($classes as $class) {
+					if ('wp-image-' === substr($class, 0, 9)) {
+						$img_id = abs(substr($class, 9));
+						$img_post = get_post($img_id, OBJECT);
+						// make sure it's a valid post and 'attachment ' type #162
+						if (NULL !== $img_post && 'attachment' === $img_post->post_type) {
+							// TODO: check image name as well?
+							$img_file = $img_post->guid;
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' guid=' . $img_file);
-						if ($this->send_media($img_file, $post_id, $post_thumbnail_id, $img_id))
-							$src_attr = NULL;
-					} else {
-						$img_id = 0;			// if not valid, clear id to indicate use of fallback method below #162
-					}
-					break;
-				}
-			}
-
-			// if the class= attribute didn't work use the src= attribute
-			if (0 === $img_id && !empty($src_attr)) {
-				// look up attachment id by name
-				$attach_posts = $attach_model->search_by_guid($src_attr, TRUE);	// do deep search #162
-				foreach ($attach_posts as $attach_post) {
-					if ($attach_post->guid === $src_attr) {
-						$img_id = $attach_post->ID;
+							if ($this->send_media($img_file, $post_id, $post_thumbnail_id, $img_id))
+								$src_attr = NULL;
+						} else {
+							$img_id = 0;			// if not valid, clear id to indicate use of fallback method below #162
+						}
 						break;
 					}
 				}
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling send_media("' . $src_attr . '", ' . $post_id . ', ' . $post_thumbnail_id . ', ' . $img_id . ')');
-//				if ($this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
-//					return FALSE;
-				$this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id);
-			}
 
-			if (0 === $img_id) {
-				// need other mechanism to match image reference to the attachment id
+				// if the class= attribute didn't work use the src= attribute
+				if (0 === $img_id && !empty($src_attr)) {
+					// look up attachment id by name
+					$attach_posts = $attach_model->search_by_guid($src_attr, TRUE);	// do deep search #162
+					foreach ($attach_posts as $attach_post) {
+						if ($attach_post->guid === $src_attr) {
+							$img_id = $attach_post->ID;
+							break;
+						}
+					}
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling send_media("' . $src_attr . '", ' . $post_id . ', ' . $post_thumbnail_id . ', ' . $img_id . ')');
+//					if ($this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
+//						return FALSE;
+					$this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id);
+				}
+
+				if (0 === $img_id) {
+					// need other mechanism to match image reference to the attachment id
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' img id does not match attachment');
+				}
 			}
 		}
 
 		// search through <a> tags within content
-		$tags = $xml->getElementsByTagName('a');
+		if (NULL !== $xml) {						// don't look for <img> elements if content is empty #180
+			$tags = $xml->getElementsByTagName('a');
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . $tags->length . ' <a> tags');
 
 //SyncDebug::log(' - url = ' . $this->_source_domain);
-		// loop through each <a> tag and send them to Target
-		for ($i = $tags->length - 1; $i >= 0; $i--) {
-			$anchor_node = $tags->item($i);
-			$href_attr = $anchor_node->getAttribute('href');
+			// loop through each <a> tag and send them to Target
+			for ($i = $tags->length - 1; $i >= 0; $i--) {
+				$anchor_node = $tags->item($i);
+				$href_attr = $anchor_node->getAttribute('href');
 //SyncDebug::log(__METHOD__.'() <a href="' . $href_attr . '"...>');
-			// verify that it's a reference to this site and it's a PDF
-			if (FALSE !== stripos($href_attr, $this->_source_domain) && 0 === strcasecmp(substr($href_attr, -4), '.pdf')) {
+				// verify that it's a reference to this site and it's a PDF
+				if (FALSE !== stripos($href_attr, $this->_source_domain) && 0 === strcasecmp(substr($href_attr, -4), '.pdf')) {
 //SyncDebug::log(__METHOD__.'() sending pdf attachment');
-				// look up attachment id
-				$attach_id = 0;
-				foreach ($post_children as $child_id => $child_post) {
-					if ($child_post->guid === $href_attr) {
-						$attach_id = $child_id;
+					// look up attachment id
+					$attach_id = 0;
+					foreach ($post_children as $child_id => $child_post) {
+						if ($child_post->guid === $href_attr) {
+							$attach_id = $child_id;
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - found pdf attachment id ' . $attach_id);
-						break;
+							break;
+						}
 					}
-				}
-				if (0 !== $attach_id)			// https://wordpress.org/support/topic/bugs-68/
-					$this->send_media($href_attr, $post_id, $post_thumbnail_id, $attach_id);
-			} else {
+					if (0 !== $attach_id)			// https://wordpress.org/support/topic/bugs-68/
+						$this->send_media($href_attr, $post_id, $post_thumbnail_id, $attach_id);
+				} else {
 //SyncDebug::log(' - no attachment to send');
+				}
 			}
 		}
 
@@ -1064,7 +1081,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' path=' . $file_path);
 
 		// adjust file path if running within multisite #167
 		if (is_multisite()) {
-			$to_dir = '/wp-content/blogs.dir/' . get_current_blog_id . '/';
+			$to_dir = '/wp-content/blogs.dir/' . get_current_blog_id() . '/';
 			$file_path = str_replace('/wp-content/files/', $to_dir, $file_path);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adjusted multisite file path to ' . $file_path);
 		}
@@ -1105,7 +1122,8 @@ if (FALSE === $contents)
 		$parts = parse_url($url);
 
 		// if it's a URL reference and on the same host, convert to filesystem path
-		if ('http' === $parts['scheme'] || 'https' === $parts['scheme'] && $domain === $parts['host']) {
+		if (('http' === $parts['scheme'] || 'https' === $parts['scheme']) &&
+			0 === strcasecmp($domain, $parts['host'])) {		// compare case insignificant #170
 			$abs = ABSPATH;
 			if ('/' === substr($abs, -1) && '/' === substr($parts['path'], 0, 1))
 				$abs = untrailingslashit($abs);

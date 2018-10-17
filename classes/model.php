@@ -310,15 +310,14 @@ SyncDebug::log(__METHOD__.'() post id=' . $post_id);
 	 */
 	public function _build_tax_data($post_id, $post_type)
 	{
-SyncDebug::log(__METHOD__.'() post id #' . $post_id . ' post_type=' . $post_type);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post id #' . $post_id . ' post_type=' . $post_type);
 		// https://codex.wordpress.org/Function_Reference/get_taxonomies
-		$args = array();
 		$taxonomies = $this->get_all_taxonomies(); // get_taxonomies($args, 'objects');
-//SyncDebug::log(__METHOD__.'() post tax: ' . var_export($taxonomies, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post tax: ' . var_export($taxonomies, TRUE));
 
 		// get a list of all taxonomy terms associated with the post type
 		$tax_names = $this->get_all_tax_names($post_type);
-SyncDebug::log(__METHOD__.'() names: ' . var_export($tax_names, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' names: ' . var_export($tax_names, TRUE));
 
 		// set up the scaffolding for the returned data object
 		$tax_data = array(
@@ -331,7 +330,7 @@ SyncDebug::log(__METHOD__.'() names: ' . var_export($tax_names, TRUE));
 		$post_terms = wp_get_post_terms($post_id, $tax_names);
 		if (is_wp_error($post_terms))
 			$post_terms = array();
-SyncDebug::log(__METHOD__.'() post terms: ' . var_export($post_terms, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post terms: ' . var_export($post_terms, TRUE));
 		// add the term information to the data object being returned
 		foreach ($post_terms as $term_data) {
 			$tax_name = $term_data->taxonomy;
@@ -352,7 +351,6 @@ SyncDebug::log(__METHOD__.'() post terms: ' . var_export($post_terms, TRUE));
 		}
 
 //SyncDebug::log(__METHOD__.'() returning taxonomy information: ' . var_export($tax_data, TRUE));
-
 		return $tax_data;
 	}
 

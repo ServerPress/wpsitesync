@@ -8,6 +8,8 @@
 
 class SyncActivate
 {
+	const OPTION_ACTIVATED_LIST = 'spectrom_sync_activated';
+
 	// these items are stored under the 'spectrom_sync_settings' option
 	protected $default_config = array(
 		'url' => '',
@@ -18,13 +20,95 @@ class SyncActivate
 
 	/*
 	 * called on plugin activation; performs all installation tasks
+	 * @param boolean $network TRUE when activating network-wide on MultiSite; otherwise FALSE
 	 */
-	public function plugin_activation()
+	public function plugin_activation($network = FALSE)
+	{
+SyncDebug::log(__METHOD__.'(' . var_export($network, TRUE) . '):' . __LINE__);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' multisite=' . (is_multisite() ? 'TRUE' : 'FALSE'));
+		if ($network && is_multisite()) {
+			$activated = get_site_option(self::OPTION_ACTIVATED_LIST, array());
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' activated=' . var_export($activated, TRUE));
+
+			$current_blog = get_current_blog_id();
+			$blogs = $this->_get_all_blogs();
+			foreach ($blogs as $blog_id) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching to blog id=' . $blog_id);
+				switch_to_blog($blog_id);
+				$this->_site_activation();					// still need to perform activation in case db structures changed
+				if (!in_array($blog_id, $activated)) {		// add only if not already present
+					$activated[] = abs($blog_id);
+				} else {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blog already marked as initialized');
+				}
+			}
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching back to ' . $current_blog);
+			switch_to_blog($current_blog);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switched back to ' . $current_blog . ' activated=' . var_export($activated, TRUE));
+			update_site_option(self::OPTION_ACTIVATED_LIST, $activated);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVATED_LIST . '" with ' . var_export($activated, TRUE));
+		} else {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' single site activation');
+			$this->_site_activation();
+		}
+
+		return TRUE;
+	}
+
+	/**
+	 * Checks that plugin has been activated on all blogs within the site
+	 */
+	public function plugin_activate_check()
+	{
+SyncDebug::log(__METHOD__.'()');
+		$current_blog = get_current_blog_id();						// get this so we can switch back later
+
+		// check to see that all blogs have been activated
+		$activated = get_site_option(self::OPTION_ACTIVATED_LIST, array());
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' previously activated sites: ' . var_export($activated, TRUE));
+
+		$blogs = $this->_get_all_blogs();
+		foreach ($blogs as $blog_id) {
+			$blog_id = abs($blog_id);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blog=' . $blog_id);
+			if (!in_array($blog_id, $activated)) {
+				// plugin not activated on this blog
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching to ' . $blog_id);
+				switch_to_blog($blog_id);
+				$this->_site_activation();
+				$activated[] = $blog_id;
+			}
+else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' site ' . $blog_id . ' already activated');
+		}
+
+		switch_to_blog($current_blog);							// switch back to original blog
+ 
+		// save activated list for later checks
+		update_site_option(self::OPTION_ACTIVATED_LIST, $activated);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVATED_LIST . '" with ' . var_export($activated, TRUE));
+	}
+
+	/**
+	 * Obtains a list of all blogs known to the site
+	 * @return array List of integers representing the blogs on the MultiSite
+	 */
+	private function _get_all_blogs()
+	{
+		global $wpdb;
+		$sql = "SELECT `blog_id`
+			FROM `{$wpdb->blogs}`";
+		$blogs = $wpdb->get_col($sql);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . var_export($blogs, TRUE));
+		return $blogs;
+	}
+
+	/**
+	 * Performs activation steps for a single site. Create databases and write options.
+	 */
+	private function _site_activation()
 	{
 		$this->create_database_tables();
 		$this->create_options();
-
-		return TRUE;
 	}
 
 	/**
@@ -49,7 +133,7 @@ class SyncActivate
 
 					PRIMARY KEY (`id`),
 					INDEX `post_id` (`post_id`)
-				)",
+				) ",
 			'sync' =>
 				"CREATE TABLE `sync` (
 					`sync_id` 			INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -66,7 +150,7 @@ class SyncActivate
 					INDEX `source_content_id` (`source_content_id`),
 					INDEX `target_content_id` (`target_content_id`),
 					INDEX `content_type` (`content_type`)
-				)",
+				) ",
 			'sources' =>
 				"CREATE TABLE `sync_sources` (
 					`id`				INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -78,7 +162,7 @@ class SyncActivate
 					PRIMARY KEY (`id`),
 					INDEX `site_key` (`site_key`),
 					INDEX `allowed` (`allowed`)
-				)",
+				) ",
 			// TODO: merge this into the `sync` table
 			'sync_media' =>
 				"CREATE TABLE `sync_media` (
@@ -89,7 +173,7 @@ class SyncActivate
 
 					PRIMARY KEY (`id`),
 					INDEX `site_key` (`site_key`)
-				)"
+				) "
 		);
 
 		return $aRet;
@@ -103,14 +187,14 @@ class SyncActivate
 		$sync = WPSiteSyncContent::get_instance();
 		$model = new SyncModel();
 		// TODO: use SyncOptions class
-		$opts = get_option('spectrom_sync_settings');
+		$opts = get_option(SyncOptions::OPTION_NAME);
 		$this->default_config['site_key'] = $model->generate_site_key();
 
 		if (FALSE !== $opts) {
 			$this->default_config = array_merge($opts, $this->default_config);
-			update_option('spectrom_sync_settings', $this->default_config, FALSE, TRUE);
+			update_option(SyncOptions::OPTION_NAME, $this->default_config, FALSE, TRUE);
 		} else {
-			add_option('spectrom_sync_settings', $this->default_config, FALSE, TRUE);
+			add_option(SyncOptions::OPTION_NAME, $this->default_config, FALSE, TRUE);
 		}
 	}
 
@@ -119,7 +203,7 @@ class SyncActivate
 	 */
 	protected function create_database_tables()
 	{
-SyncDebug::log(__METHOD__.'()');
+SyncDebug::log(__METHOD__.'():' . __LINE__);
 		global $wpdb;
 		require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 
@@ -139,26 +223,40 @@ SyncDebug::log(__METHOD__.'()');
 //			$charset_collate .= " COLLATE {$collate} ";
 		$charset_collate = $wpdb->get_charset_collate();
 
-		$aTables = $this->get_table_data();
-		foreach ($aTables as $table => $sql) {
+		// Hack to reduce errors. Removing backticks makes the dbDelta function work better. #164
+		add_filter('dbdelta_create_queries', array($this, 'filter_dbdelta_queries'));
+		add_filter('wp_should_upgrade_global_tables', '__return_true');
+
+		$errors = $wpdb->show_errors(FALSE);				// disable errors #164
+		$tables = $this->get_table_data();
+		foreach ($tables as $table => $sql) {
 			$sql = str_replace('CREATE TABLE `', 'CREATE TABLE `' . $wpdb->prefix . 'spectrom_', $sql);
 			$sql .= $charset_collate;
-SyncDebug::log(__METHOD__.'() sql=' . $sql);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sql=' . $sql);
 
-			ob_start();
+//			ob_start();
 			$ret = dbDelta($sql);
-			$res = ob_get_clean();
-SyncDebug::log(__METHOD__.'() dbDelta() results: ' . $res);
+//			$res = ob_get_clean();
+//SyncDebug::log(__METHOD__.'() dbDelta() results: ' . $res);
 		}
-SyncDebug::log(__METHOD__.'() - done');
+		$wpdb->show_errors($errors);						// reset errors #164
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - done');
+	}
+
+	/**
+	 * Filters the CREATE TABLE statements, removing backticks so that the dbDelta parser doesn't throw errors
+	 * @param array $c_queries An array of SQL statements
+	 * @return array Modified statements
+	 */
+	public function filter_dbdelta_queries($c_queries)
+	{
+		$ret_queries = array();
+		foreach ($c_queries as $query) {
+			$ret_queries[] = str_replace('`', '', $query);
+		}
+		return $ret_queries;
 	}
 }
 
-$install = new SyncActivate();
-$res = $install->plugin_activation();
-if (!$res) {
-	// error during installation - disable
-	deactivate_plugins(plugin_basename(dirname(__FILE__)));
-}
 
 // EOF

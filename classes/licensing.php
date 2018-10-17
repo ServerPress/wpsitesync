@@ -310,7 +310,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending ' . var_export($api_param
 			'sslverify' => FALSE,
 			'body'      => $api_params
 		), self::MODE_POST);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' results=' . var_export($response, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' results=' . var_export($res, TRUE));
 
 		// check for errors
 		if (FALSE === $res) {		// if (is_wp_error($response)) {

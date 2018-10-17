@@ -111,6 +111,16 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.4.2 - Oct 16, 2018 =
+* enhancement: update serialization fixup code to allow for serialized data within serialized data (Thanks Alpesh J.)
+* enhancement: improve handling of empty Content, resolve warning messages (Thanks Erin M.)
+* fix: domain comparison for embedded images wasn't finding local images if site_url was mixed case
+* fix: removed logging of Target site credentials (Thanks Randy K.)
+* fix: address runtime error in serialization parsing (Thanks Vid W.)
+* fix/enhancement: improve MultiSite activation and fix activation for new sites added to network (Thanks Tyler S.)
+* fix: potential runtime error in licensing code
+* fix: runtime errors can sometimes be displayed if previously pushed content no longer exists on Target
+
 = 1.4.1 - Aug 2, 2018 =
 * enhancement: updated configuration of allowed Roles for WPSiteSync UI. Can now allow custom Roles. (Thanks Randy K.)
 * enhancement: disable redirect by f(x) Private Site plugin on WPSiteSync API endpoint.

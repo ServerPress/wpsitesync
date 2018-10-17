@@ -51,6 +51,7 @@ class SyncSerialize
 		$nesting = 0;										// how deep are arrays/objects nested
 
 		while ($this->_pos < strlen($this->_data)) {
+//$this->_debug();
 			$ch = substr($this->_data, $this->_pos++, 1);
 			$entry = NULL;
 			switch ($ch) {
@@ -121,19 +122,25 @@ class SyncSerialize
 				if (0 !== $nesting) {
 					--$nesting;
 				} else {
-					$this->_error('Unexpected close brace found at offset ' . $this->_pos);
+//echo 'pos=', $this->_pos, ' len=', strlen($this->_data), PHP_EOL;
+					if ($this->_pos < strlen($this->_data) - 3)			// #176 allow for nexted serialization
+						$this->_error('Unexpected close brace found at offset ' . $this->_pos . ': ' . substr($this->_data, $this->_pos, 20));
 				}
 				$res .= '}';
 				break;
 			default:
-				$this->_error('Unrecognized type character "' . $ch . '" at offset ' . $this->_pos . ' found');
+				if ($this->_pos >= strlen($this->_data) - 2)			// #176 allow for nested serialization
+					$res .= $ch;
+				else
+					$this->_error('Unrecognized type character "' . $ch . '" at offset ' . $this->_pos . ' found');
 			}
 
 			// if the item is a string, give the callback a chance to modify it
 			if (NULL !== $entry) {
-				if ('s' === $entry->type) {
+				if ('s' === $entry->type && NULL !== $callback) {
 					// if this entry is a string, send it to the callback
-					$callback($entry);
+					call_user_func($callback, $entry); #177
+//					$callback($entry);
 				}
 
 				// append (modified) entry to the result
@@ -433,6 +440,7 @@ class SyncSerializeEntry
 			throw new Exception('Unrecognized serialization type marker: "' . $this->type . '"');
 		}
 		$this->type = $type;
+//echo 'entry: ', $this->__toString(), PHP_EOL;
 	}
 
 	public function __toString()

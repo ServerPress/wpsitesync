@@ -74,6 +74,9 @@ margin-right: -0.5rem;
 	padding-top: 4px;
 }
 
+#spectrom_sync #sync-details {
+	margin-bottom: 10px;
+}
 #spectrom_sync #sync-details-container {
 
 }
@@ -105,6 +108,7 @@ padding-right: 5px;
 	-webkit-transform: rotate(180deg);     /* Chrome and other webkit browsers */
 	transform: rotate(180deg);
 padding-bottom: 3px;
+padding-bottom: 0px;
 padding-left: 3px;
 	vertical-align: text-top;
 }

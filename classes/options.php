@@ -41,7 +41,7 @@ class SyncOptions
 		if (NULL !== self::$_options)
 			return;
 		self::$_options = get_option(self::OPTION_NAME, array());
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_options, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_options, TRUE));
 		if (FALSE === self::$_options)
 			self::$_options = array();
 
@@ -62,7 +62,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_op
 		);
 
 		self::$_options = array_merge($defaults, self::$_options);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_options, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_options, TRUE));
 
 		// adjust settings for roles if missing (newly added setting not configured; use defaults) #166
 		if (empty(self::$_options['roles']) || empty(self::$_options['min_role'])) {
@@ -78,7 +78,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_op
 				self::$_options['roles'] = '|administrator|';
 				break;
 			}
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; setting to: ' . self::$_options['roles']);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; setting to: ' . self::$_options['roles']);
 		}
 	}
 
@@ -161,7 +161,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; setting to: ' . 
 		$roles = self::get('roles', '');
 		if (empty($roles)) {
 			// if the roles are empty, adjust setting based on default roles from v1.4
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; min_role=' . var_export($min_role, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; min_role=' . var_export($min_role, TRUE));
 			switch ($min_role) {
 				case 'administrator':
 				default:
@@ -177,28 +177,12 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; min_role=' . var
 		}
 		$current_user = wp_get_current_user();
 		// check to see if current user's Role is in list of allowed roles #166
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles=' . var_export($roles, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles=' . var_export($roles, TRUE));
 		foreach ($current_user->roles as $role)
 			if (FALSE !== strpos($roles, self::ROLE_DELIMITER . $role . self::ROLE_DELIMITER)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found matching role "' . $role . '"');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found matching role "' . $role . '"');
 				return TRUE;
 			}
-		return FALSE;
-#####
-		switch ($min_role) {
-		case 'administrator':
-			if (in_array($min_role, $current_user->roles))
-				return TRUE;
-			break;
-		case 'editor':
-			if (in_array($min_role, $current_user->roles) || in_array('administrator', $current_user->roles))
-				return TRUE;
-			break;
-		case 'author':
-			if (in_array($min_role, $current_user->roles) || in_array('editor', $current_user->roles) || in_array('administrator', $current_user->roles))
-				return TRUE;
-			break;
-		}
 		return FALSE;
 	}
 

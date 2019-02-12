@@ -16,6 +16,7 @@ class SyncAdmin
 		// Hook here, admin_notices won't work on plugin activation since there's a redirect.
 		add_action('admin_notices', array($this, 'configure_notice'));
 		add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
+		add_action('wp_dashboard_setup', array($this, 'dashboard_init'), 50);
 		add_action('add_meta_boxes', array($this, 'add_sync_metabox'));
 		add_filter('plugin_action_links_wpsitesynccontent/wpsitesynccontent.php', array($this, 'plugin_action_links'));
 
@@ -103,10 +104,13 @@ class SyncAdmin
 	 */
 	public function add_sync_metabox($post_type)
 	{
+//SyncDebug::log(__METHOD__.'():' . __LINE__);
 		// check for minimum user role settings #122
 		if (!SyncOptions::has_cap()) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no cap');
 			return;
 		}
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' continuing');
 
 		$target = SyncOptions::get('host', NULL);
 		$auth = SyncOptions::get('auth', 0);
@@ -115,8 +119,10 @@ class SyncAdmin
 		if (!empty($target) && 1 === $auth) {
 			$screen = get_current_screen();
 			$post_types = apply_filters('spectrom_sync_allowed_post_types', array('post', 'page'));     // only show for certain post types
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post types=' . implode('|', $post_types));
 			if (in_array($post_type, $post_types) &&
 				'add' !== $screen->action) {		// don't display metabox while adding content
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' allowed post type');
 				$dir = plugin_dir_url(dirname(__FILE__));
 				$img = '<img id="sync-logo" src="' . $dir . 'assets/imgs/wpsitesync-logo-blue.png" width="125" height="45" alt="' .
 //				$img = '<img id="sync-logo" src="' . $dir . 'assets/imgs/wpsitesync-logo.svg" width="125" height="45" alt="' .
@@ -133,6 +139,7 @@ class SyncAdmin
 //						'__back_compat_meta_box' => TRUE,
 					));
 			}
+//else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' disallowed post type');
 		}
 	}
 
@@ -218,7 +225,7 @@ class SyncAdmin
 		echo '<div id="sync-success-msg">', __('Content successfully sent to Target system.', 'wpsitesynccontent'), '</div>';
 		if (!class_exists('WPSiteSync_Pull', FALSE))
 			echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Please activate the Pull extension.', 'wpsitesynccontent'), '</div></div>';
-		echo '<div id="sync-runtime-err-msg">', __('A PHP runtime error occured while processing your request. Examine Target log files for more information.', 'wpsitesynccontent'), '</div>';
+		echo '<div id="sync-runtime-err-msg">', __('A PHP runtime error occurred while processing your request. Examine Target log files for more information.', 'wpsitesynccontent'), '</div>';
 		echo '<div id="sync-error-msg">', __('Error: error encountered during request.', 'wpsitesynccontent'), '</div>';
 		echo '</div>';
 
@@ -229,6 +236,24 @@ class SyncAdmin
 		echo '<span id="sync-msg-update-changes"><b>', __('Please UPDATE your changes in order to Sync.', 'wpsitesynccontent'), '</b></span>';
 		do_action('spectrom_sync_ui_messages');
 		echo '</div>';
+	}
+
+	/**
+	 * Initializes the Dashboard Widget
+	 */
+	public function dashboard_init()
+	{
+		$db_widget = new SyncAdminDashboard();
+		wp_add_dashboard_widget('sync-dashboard', 'WPSiteSync', array($db_widget, 'render_dashboard_widget'));
+
+		// move to the top
+		global $wp_meta_boxes;
+		$widget_list = $wp_meta_boxes['dashboard']['normal']['core'];
+		$widget = array('sync-dashboard' => $widget_list['sync-dashboard']);
+		unset($widget_list['sync-dashboard']);
+
+		$new_widget_list = array_merge($widget, $widget_list);
+		$wp_meta_boxes['dashboard']['normal']['core'] = $new_widget_list;
 	}
 
 	/**

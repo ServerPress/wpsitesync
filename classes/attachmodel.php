@@ -60,6 +60,24 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' img=' . $img_url);
 	}
 
 	/**
+	 * Retrieves an attachment's post ID based on it's name
+	 * @param string $name The name to search in the `post_name` column. No extension is included in this name.
+	 * @return int|boolean The post ID of the attachment if found or FALSE if not found
+	 */
+	public function get_id_by_name($name)
+	{
+		global $wpdb;
+		$sql = "SELECT `ID`
+				FROM `{$wpdb->posts}`
+				WHERE `post_name`=%s AND `post_type`='attachment'";
+		$res = $wpdb->get_col($stmt = $wpdb->prepare($sql, $name));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ' . $stmt . ' = ' . var_export($res, TRUE));
+		if (0 !== count($res))
+			return abs($res[0]);
+		return FALSE;
+	}
+
+	/**
 	 * Builds a list of all the images sizes known to WP
 	 * @return array The list of registered image sizes in the form {width}x{height}
 	 */

@@ -41,8 +41,23 @@ class SyncLogModel
 			$data['source_user'] = 0;
 		if (!isset($data['post_title']))
 			$data['post_title'] = '';
-
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' logging: ' . var_export($data, TRUE));
 		return $wpdb->insert($this->_log_table, $data);
+	}
+
+	public function get_count($type = 'recv')
+	{
+		if (empty($type))
+			$type = 'recv';
+		else
+			$type = sanitize_key($type);
+
+		$sql = "SELECT COUNT(*)
+				FROM `{$this->_log_table}`
+				WHERE `type`='{$type}'";
+		global $wpdb;
+		$res = $wpdb->get_col($sql);
+		return $res[0];
 	}
 }
 

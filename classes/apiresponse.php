@@ -216,7 +216,7 @@ SyncDebug::log(__METHOD__.'() ' . var_export($json_data, TRUE));
 
 		if ($this->has_errors()) {
 			$this->success = 0;					// force this
-			$this->set('message', SyncApiRequest::error_code_to_string($this->error_code));
+			$this->set('message', SyncApiRequest::error_code_to_string($this->error_code, $this->error_data));
 		}
 
 		$output = $this->__toString();			// construct data to send to browser

@@ -4,7 +4,7 @@ Donate link: http://wpsitesync.com
 Tags: attachments, content, content sync, data migration, desktopserver, export, import, migrate content, moving data, staging, synchronization, taxonomies
 Requires at least: 3.5
 Requires PHP: 5.3.1
-Tested up to: 4.9
+Tested up to: 5.0.3
 Stable tag: trunk
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ Provides features for synchronizing content between two WordPress sites.
 
 == Description ==
 
-WPSiteSync for Content helps Designers, Developers and Content Creators Synchronize Blog Post and Page Content between WordPress installs, in Real Time, with a simple Click of a button!
+WPSiteSync for Content helps Designers, Developers and Content Creators Synchronize Blog Post and Page Content between WordPress site, in Real Time, with a simple Click of a button!
 
 * Local -&gt; Staging
 * Staging -&gt; Live
@@ -21,9 +21,9 @@ WPSiteSync for Content helps Designers, Developers and Content Creators Synchron
 
 [youtube https://www.youtube.com/watch?v=KpeiTMbdj_Y]
 
-><strong>Support Details:</strong> We are happy to provide support and help troubleshoot issues. Visit our Contact page at <a href="http://serverpress.com/contact/" target="_blank">http://serverpress.com/contact/</a>. Users should know however, that we check the WordPress.org support forums once a week on Wednesdays from 6pm to 8pm PST (UTC -8).
+><strong>Support Details:</strong> We are happy to provide support and help troubleshoot issues. Visit our Contact page at <a href="https://serverpress.com/contact/" target="_blank">https://serverpress.com/contact/</a>. Users should know however, that we check the WordPress.org support forums once a week on Wednesdays from 6pm to 8pm PST (UTC -8).
 
-The <em>WPSiteSync for Content</em> plugin was specifically designed to ease your workflow when creating content between development, staging and live servers. The tool removes the need to migrate an entire database, potentially overwriting new content on the live site, just to update a few pages or posts. Now you can easily move your content from one install to another with the click of a button, reducing errors and saving you time.
+The <em>WPSiteSync for Content</em> plugin was specifically designed to ease your workflow when creating content between development, staging and live servers. The tool removes the need to migrate an entire database, potentially overwriting new content on the live site, just to update a few pages or posts. Now you can easily move your content from one site to another with the click of a button, reducing errors and saving you time.
 
 WPSiteSync for Content is fully functional in any WordPress environment.  We recommend using DesktopServer, but it is not a requirement.
 
@@ -43,8 +43,9 @@ WPSiteSync for Content is fully functional in any WordPress environment.  We rec
 * Content Images
 * Featured Images
 * PDF Attachements
-* Meta-Data (including Advanced Custom Fields)
+* Meta-Data
 * Taxonomy such as Tags and Categories
+* Gutenberg Compatible. Create content with Gutenberg on Staging and Push it to Live, along with all images.
 * And much much more
 
 <strong>In our Early Adopter Trailblazer Program, you will also Receive:</strong>
@@ -52,11 +53,11 @@ WPSiteSync for Content is fully functional in any WordPress environment.  We rec
 * WPSiteSync for Bi-Directional Pull (Syncing from Live to Staging)
 * WPSiteSync for Custom Post Types
 * WPSiteSync for Author Attribution
-* WPSiteSync for Comments
-* WPSiteSync for BulkActions
-* WPSiteSync for BeaverBuilder
+* WPSiteSync for Auto Sync
+* WPSiteSync for Bulk Actions
 * WPSiteSync for Genesis Settings
-* WPSiteSync for WooCommerce Products
+* WPSiteSync for Menus
+* WPSiteSync for Bi-Directional Pull
 * FULL access to ALL future Premium Extensions
 
 <strong>For more perks such as Early Access</strong> and <strong>Exclusive Preview</strong> of upcoming Features, please visit us at <a href="https://wpsitesync.com">WPSiteSync.com</a>
@@ -89,7 +90,7 @@ Once activated, you can use the Configuration page found at Settings -&gt; WPSit
 
 Yes! The WPSiteSync for Content needs to be installed on the local or Staging server (the website you're moving the data from - the Source), as well as the Live server (the website you're moving the data to - the Target).
 
-= Does this plugin Synchronize all of my content at once? =
+= Does this plugin Synchronize all of my content (Pages and Posts) at once? =
 
 No. WPSiteSync for Content will only synchronize the Page or Post content that you are editing. And it will only Synchronize the content when you tell it to. This allows you to control exactly what content is moved between sites and when it will be moved.
 
@@ -101,9 +102,9 @@ In addition, each time Content is updated or Synchronized on the Target web site
 
 = Does WPSiteSync only update Page and Posts Content? =
 
-Yes. Support for Custom Post Types is coming very soon. Additional plugins for User Attribution, Synchronizing Comments and Pulling content are in the testing stage and will be released soon as well.
+Yes. However, support for synchronizing Custom Post Types is available with our <a href="https://wpsitesync.com/downloads/wpsitesync-for-custom-post-types/" target="_blank">WPSiteSync for Custom Post Types</a> add-on. Additional plugins for User Attribution, Synchronizing Menus and Pulling content are available as well.
 
-More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ninja Forms), and other plugins that use custom database tables will be supported by additional plugins that work with those products.
+More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ninja Forms), and other plugins that use custom database tables are supported by additional plugins that work with those products.
 
 == Screenshots ==
 
@@ -111,6 +112,18 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.5 - Feb 11, 2019 =
+* fix: improve detection of Target post being edited
+* fix: improve detection of images referenced in Content to ensure that they get Pushed to the Target site
+* enhancement: add dashboard widget
+* enhancement: implement optional usage reporting to ServerPress.com
+* enhancement: add new Target side post lookup options: slug then title and title then slug
+* enhancement: add logging of Push receipt
+* enhancement: improve error messaging if API calls are blocked by Wordfence
+* enhancement: improve SyncApiRequest::url_to_path() to better handle subdirectory installs
+* enhancement: improve handling of Gutenberg Block data and add hooks to allow add-ons to extend handling capabilities
+* enhancement: allow all mime types known by WP to be Pushed as attachments
+
 = 1.4.2 - Oct 16, 2018 =
 * enhancement: update serialization fixup code to allow for serialized data within serialized data (Thanks Alpesh J.)
 * enhancement: improve handling of empty Content, resolve warning messages (Thanks Erin M.)

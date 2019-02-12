@@ -6,7 +6,6 @@ class SyncModel
 
 	private $_sync_table = NULL;
 	private static $_taxonomies = array();
-	private $_edit_user_id = FALSE;
 
 	public function __construct()
 	{
@@ -109,7 +108,7 @@ SyncDebug::log(__METHOD__.'() sql=' . $sql);
 	 * Gets sync data based on site_key and the post ID from the Source site
 	 * @param int $source_id The post ID coming from the Source site
 	 * @param string $site_key The site_key associated with the sync operation
-	 * @param string $type The content type being searched, defaults to 'post'
+	 * @param string $type The content type being searched, defaults to 'post'. This is not a 'post_type' but which database the Content identified by $source_id is found in.
 	 * @param boolean $assoc TRUE to associate Target ID to the wp_post table; otherwise FALSE
 	 * @return mixed Returns NULL if no result is found, else an object
 	 */

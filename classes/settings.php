@@ -308,30 +308,51 @@ class SyncSettings extends SyncInput
 			self::SETTINGS_PAGE								// option page
 		);
 
+		$args = array(											// args
+			'name' => 'strict',
+			'value' => $data['strict'],
+			'options' => array(
+				'1' => __('On - WordPress and WPSiteSync for Content versions must match on Source and Target in order to perform operations.', 'wpsitesynccontent'),
+				'0' => __('Off - WordPress and WPSiteSync for Content versions do not need to match.', 'wpsitesynccontent'),
+			),
+		);
+		$args = apply_filters('spectrom_sync_setting-strict', $args);
+
 		add_settings_field(
 			'strict',										// field id
 			__('Strict Mode:', 'wpsitesynccontent'),		// title
 			array($this, 'render_radio_field'),				// callback
 			self::SETTINGS_PAGE,							// page
 			$section_id,									// section id
-			array(											// args
-				'name' => 'strict',
-				'value' => $data['strict'],
-				'options' => array(
-					'1' => __('On - WordPress and WPSiteSync for Content versions must match on Source and Target in order to perform operations.', 'wpsitesynccontent'),
-					'0' => __('Off - WordPress and WPSiteSync for Content versions do not need to match.', 'wpsitesynccontent'),
-				),
-			)
+			$args
+		);
+
+		$args = array(
+			'name' => 'report',
+			'value' => $data['report'],
+			'description' => __('When checked, WPSiteSync will forward usage information to ServerPress.com', 'wpsitesynccontent'),
+		);
+		add_settings_field(
+			'report',										// field id
+			__('Usage Reporting:', 'wpsitesynccontent'),	// title
+			array($this, 'render_checkbox_field'),			// callback
+			self::SETTINGS_PAGE,							// page
+			$section_id,									// section id
+			$args
 		);
 
 		$match_mode = isset($data['match_mode']) ? $data['match_mode'] : 'slug';
 		switch ($match_mode) {
-		case 'slug':		$desc = __('Slug - Search for matching Content on Target by Post Slug.', 'wpsitesynccontent');
+		case 'slug':		$desc = __('Slug - Search for matching Content on Target by Post Slug only.', 'wpsitesynccontent');
+			break;
+		case 'slug-title':	$desc = __('Slug, then Title - Search for matching Content on Target by Slug, then Post Title.', 'wpsitesynccontent');
 			break;
 		case 'id':			$desc = __('ID - Search for matching Content on Target by Post ID.', 'wpsitesynccontent');
 			break;
-		case 'title':		$desc = __('Post Title - Search for matching Content on Target by Post Title.', 'wpsitesynccontent');
+		case 'title':		$desc = __('Post Title - Search for matching Content on Target by Post Title only.', 'wpsitesynccontent');
 		default:
+			break;
+		case 'title-slug':	$desc = __('Title, then Slug - Search for matching Content on Target by Post Title, then by Slug.', 'wpsitesynccontent');
 			break;
 		}
 
@@ -346,7 +367,9 @@ class SyncSettings extends SyncInput
 				'value' => $match_mode,
 				'options' => array(
 					'title' => __('Post Title', 'wpsitesynccontent'),
+					'title-slug' => __('Post Title, then Post Slug', 'wpsitesynccontent'),
 					'slug' => __('Post Slug', 'wpsitesynccontent'),
+					'slug-title' => __('Post Slug, then Post Title', 'wpsitesynccontent'),
 //					'id' => __('Post ID', 'wpsitesynccontent'),
 				),
 				'description' => $desc,
@@ -514,6 +537,20 @@ class SyncSettings extends SyncInput
 	}
 
 	/**
+	 * Renders a checkbox input field for settings display
+	 * @param array $args An array of option data used to output the checkbox
+	 */
+	public function render_checkbox_field($args)
+	{
+		$name = $args['name'];
+
+		echo '<input type="hidden" name="spectrom_sync_settings[', $name, ']" value="0" />';
+		echo '<input type="checkbox" name="spectrom_sync_settings[', $name, ']" ', checked($args['value'], '1'), ' value="1" />';
+		if (isset($args['description']))
+			echo '&nbsp;<em>', $args['description'], '</em>';
+	}
+
+	/**
 	 * Renders the radio buttons used for the control
 	 * @param array $args Arguments used to render the radio buttons
 	 */
@@ -522,10 +559,12 @@ class SyncSettings extends SyncInput
 		$options = $args['options'];
 		$name = $args['name'];
 
+		$br = '';
 		foreach ($options as $value => $label) {
+			echo $br;
 			printf('<input type="radio" name="spectrom_sync_settings[%s]" value="%s" %s /> %s',
 				$name, $value, checked($value, $args['value'], FALSE), $label);
-			echo '<br>';
+			$br = '<br>';
 		}
 		if (isset($args['description']))
 			echo '<br/><em>', $args['description'], '</em>';
@@ -597,7 +636,7 @@ class SyncSettings extends SyncInput
 			$values['roles'] = array('administrator' => 'on');
 
 		foreach ($values as $key => $value) {
-//SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
+SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
 			if (empty($values[$key]) && 'password' === $key) {
 				// ignore this so that passwords are not required on every settings update
 			} else {
@@ -632,6 +671,8 @@ class SyncSettings extends SyncInput
 						} else
 							$out[$key] = $settings['username'];
 					}
+				} else if ('report' === $key) {
+					$out[$key] = '1' === $value ? '1' : '0';
 				} else if ('roles' === $key) {
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' POST=' . var_export($_POST, TRUE));
 					$roles = array();
@@ -769,7 +810,7 @@ class SyncSettings extends SyncInput
 				'<p>' . __('<strong>Username on Target</strong>: Enter the Administrator username for the Target website.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Password on Target</strong>: Enter the Administrator password for the Target website.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Strict Mode</strong>: Select if WordPress and WPSiteSync for Content should be the same versions on the Source and the Target.', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<strong>Match Mode</strong>: How WPSiteSync should match posts on the Target. You can select "Post Title" (default), or "Post Slug" to match Content by Title or Slug.', 'wpsitesynccontent') . '</p>' .
+				'<p>' . __('<strong>Match Mode</strong>: How WPSiteSync should match posts on the Target. Searches for matching Content on Target site based on "Post Title" (default), "Post Slug", "Post Title, then Post Slug", or "Post Slug, then Post Title".', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Roles</strong>: The Roles that will be allowed to perform Syncing operations. Only Roles with the "edit_posts" capability will be shown. The "Administrator" Role is always allowed to perform operations.', 'wpsitesynccontent') . '</p>'
 //				'<p>' . __('<strong>Authentication Salt:</strong>: Enter a salt to use when Content is sent to current site or leave blank.', 'wpsitesynccontent') . '</p>' .
 //				'<p>' . __('<strong>Minimum Role allowed to SYNC Content</strong>: Select minimum role of user who can Sync Content to current site.', 'wpsitesynccontent') . '</p>'

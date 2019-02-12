@@ -18,7 +18,9 @@ class SyncDeactivate
 		if ('1' === SyncOptions::get('remove', '0')) {
 			$this->remove_database_tables();
 			$this->remove_options();
+			// TODO: remove site options
 			$this->remove_transients();
+			$this->remove_schedules();
 		}
 
 		return TRUE;
@@ -68,6 +70,14 @@ class SyncDeactivate
 		foreach ($trans_keys as $trans_key) {
 			delete_transient($trans_key);
 		}
+	}
+
+	/**
+	 * Remove any scheduled events. This are used in reporting usage statistics
+	 */
+	protected function remove_schedules()
+	{
+		wp_clear_scheduled_hook(SyncUsage::EVENT_HOOK);
 	}
 
 	/**

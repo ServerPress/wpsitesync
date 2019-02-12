@@ -28,25 +28,25 @@ SyncDebug::log(__METHOD__.'(' . var_export($network, TRUE) . '):' . __LINE__);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' multisite=' . (is_multisite() ? 'TRUE' : 'FALSE'));
 		if ($network && is_multisite()) {
 			$activated = get_site_option(self::OPTION_ACTIVATED_LIST, array());
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' activated=' . var_export($activated, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' activated=' . implode(',', $activated));
 
 			$current_blog = get_current_blog_id();
 			$blogs = $this->_get_all_blogs();
 			foreach ($blogs as $blog_id) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching to blog id=' . $blog_id);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching to blog id=' . $blog_id);
 				switch_to_blog($blog_id);
 				$this->_site_activation();					// still need to perform activation in case db structures changed
 				if (!in_array($blog_id, $activated)) {		// add only if not already present
 					$activated[] = abs($blog_id);
 				} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blog already marked as initialized');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blog already marked as initialized');
 				}
 			}
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching back to ' . $current_blog);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching back to ' . $current_blog);
 			switch_to_blog($current_blog);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switched back to ' . $current_blog . ' activated=' . var_export($activated, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switched back to ' . $current_blog . ' activated=' . implode(',', $activated));
 			update_site_option(self::OPTION_ACTIVATED_LIST, $activated);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVATED_LIST . '" with ' . var_export($activated, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVATED_LIST . '" with ' . implode(',', $activated));
 		} else {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' single site activation');
 			$this->_site_activation();
@@ -65,27 +65,27 @@ SyncDebug::log(__METHOD__.'()');
 
 		// check to see that all blogs have been activated
 		$activated = get_site_option(self::OPTION_ACTIVATED_LIST, array());
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' previously activated sites: ' . var_export($activated, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' previously activated sites: ' . implode(',', $activated));
 
 		$blogs = $this->_get_all_blogs();
 		foreach ($blogs as $blog_id) {
 			$blog_id = abs($blog_id);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blog=' . $blog_id);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blog=' . $blog_id);
 			if (!in_array($blog_id, $activated)) {
 				// plugin not activated on this blog
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching to ' . $blog_id);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' switching to ' . $blog_id);
 				switch_to_blog($blog_id);
 				$this->_site_activation();
 				$activated[] = $blog_id;
 			}
-else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' site ' . $blog_id . ' already activated');
+//else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' site ' . $blog_id . ' already activated');
 		}
 
 		switch_to_blog($current_blog);							// switch back to original blog
  
 		// save activated list for later checks
 		update_site_option(self::OPTION_ACTIVATED_LIST, $activated);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVATED_LIST . '" with ' . var_export($activated, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVATED_LIST . '" with ' . implode(',', $activated));
 	}
 
 	/**
@@ -98,7 +98,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVAT
 		$sql = "SELECT `blog_id`
 			FROM `{$wpdb->blogs}`";
 		$blogs = $wpdb->get_col($sql);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . var_export($blogs, TRUE));
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . implode(',', $blogs));
 		return $blogs;
 	}
 
@@ -115,9 +115,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . var_export($blogs, TRUE
 	 * Returns array containing information on database tables
 	 * @return array Database information
 	 */
-	public static function get_table_data()
+	protected function get_table_data()
 	{
-		$aRet = array(
+		$ret = array(
 			// table names will be prefixed with "{$wpdb->prefix}spectrom_"
 			'sync_log' =>
 				"CREATE TABLE `sync_log` (
@@ -130,9 +130,11 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . var_export($blogs, TRUE
 					`source_site` 		VARCHAR(200) NOT NULL,
 					`source_site_key`	VARCHAR(40) NOT NULL,
 					`target_user`		BIGINT(20) UNSIGNED NOT NULL,
+					`type`              VARCHAR(4) NOT NULL DEFAULT 'recv',
 
 					PRIMARY KEY (`id`),
-					INDEX `post_id` (`post_id`)
+					INDEX `post_id` (`post_id`),
+					INDEX `type` (`type`)
 				) ",
 			'sync' =>
 				"CREATE TABLE `sync` (
@@ -176,7 +178,20 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . var_export($blogs, TRUE
 				) "
 		);
 
-		return $aRet;
+		return $ret;
+	}
+
+	/**
+	 * Returns array containing information on database alterations
+	 * @return array Database information
+	 */
+	protected function get_alter_data()
+	{
+		$ret = array(
+			'sync_log' => "ALTER TABLE `sync_log`
+				ADD COLUMN `type` VARCHAR(4) NOT NULL DEFAULT 'recv' AFTER `target_user`",
+		);
+		return $ret;
 	}
 
 	/**
@@ -189,6 +204,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . var_export($blogs, TRUE
 		// TODO: use SyncOptions class
 		$opts = get_option(SyncOptions::OPTION_NAME);
 		$this->default_config['site_key'] = $model->generate_site_key();
+		$date = $this->get_install_date();
+		$this->default_config['installed'] = $date;
 
 		if (FALSE !== $opts) {
 			$this->default_config = array_merge($opts, $this->default_config);
@@ -196,6 +213,36 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blogs=' . var_export($blogs, TRUE
 		} else {
 			add_option(SyncOptions::OPTION_NAME, $this->default_config, FALSE, TRUE);
 		}
+	}
+
+	/**
+	 * Determine the install date. Use the current date, then look in tables for an earlier date
+	 * @return string $date The date/time stamp that WPSiteSync was instaled
+	 */
+	public function get_install_date()
+	{
+		$date = current_time('mysql');
+
+		// look in the sync table
+		global $wpdb;
+		$sql = "SELECT `last_update`
+					FROM `{$wpdb->prefix}spectrom_sync`
+					ORDER BY `last_update` ASC
+					LIMIT 1";
+		$check_date = $wpdb->get_col($sql);
+		if (is_array($check_date) && count($check_date) > 0 && $check_date[0] < $date)
+			$date = $check_date[0];
+
+		// look in the log table
+		$sql = "SELECT `push_date`
+					FROM `{$wpdb->prefix}spectrom_sync_log`
+					ORDER BY `push_date` ASC
+					LIMIT 1";
+		$check_date = $wpdb->get_col($sql);
+		if (is_array($check_date) && count($check_date) > 0 && $check_date < $date)
+			$date = $check_date;
+
+		return $date;
 	}
 
 	/**
@@ -232,12 +279,20 @@ SyncDebug::log(__METHOD__.'():' . __LINE__);
 		foreach ($tables as $table => $sql) {
 			$sql = str_replace('CREATE TABLE `', 'CREATE TABLE `' . $wpdb->prefix . 'spectrom_', $sql);
 			$sql .= $charset_collate;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sql=' . $sql);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sql=' . $sql);
 
 //			ob_start();
 			$ret = dbDelta($sql);
 //			$res = ob_get_clean();
 //SyncDebug::log(__METHOD__.'() dbDelta() results: ' . $res);
+		}
+
+		// process database alterations
+		$alters = $this->get_alter_data();
+		foreach ($alters as $table => $sql) {
+			$sql = str_replace('ALTER TABLE `', 'ALTER TABLE `' . $wpdb->prefix . 'spectrom_', $sql);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sql=' . $sql);
+			$wpdb->query($sql);
 		}
 		$wpdb->show_errors($errors);						// reset errors #164
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - done');
@@ -257,6 +312,5 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - done');
 		return $ret_queries;
 	}
 }
-
 
 // EOF

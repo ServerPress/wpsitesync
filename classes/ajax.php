@@ -132,11 +132,8 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 	 */
 	public function push(SyncApiResponse &$response)
 	{
-SyncDebug::log(__METHOD__.'()');
-
 		// TODO: move nonce check into dispatch() so it's centralized
 		if (!(wp_verify_nonce($this->post('_sync_nonce', ''), 'sync'))) {
-SyncDebug::log('- failed nonce check');
 			$response->success(FALSE);
 			$response->error_code(SyncApiRequest::ERROR_BAD_NONCE);
 			$response->send();
@@ -151,6 +148,7 @@ SyncDebug::log('- failed nonce check');
 			$response->success(TRUE);
 			$response->set('message', __('Content successfully sent to Target system.', 'wpsitesynccontent'));
 		} else {
+			do_action('spectrom_sync_push_api_response', $response);
 //			$response->copy($api_response);
 		}
 		return;

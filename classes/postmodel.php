@@ -35,7 +35,7 @@ SyncDebug::log('- post id=' . $post_id);
 	/**
 	 * Helper method to find potential match on Target site based on Search Mode setting on Source site.
 	 * @param array $post_data Post data sent from Source site
-	 * @param string $mode The match mode to use to perform post lookup. One of 'title', 'slug' or 'id'
+	 * @param string $mode The match mode to use to perform post lookup. One of 'title', 'title-slug', 'slug', 'slug-title' or 'id'
 	 * @return int The Target post ID for the matching post or 0 to indicate no match found.
 	 */
 	public function lookup_post($post_data, $mode = 'title')
@@ -45,13 +45,36 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' mode=' . $mode);
 
 		switch ($mode) {
 		case 'title':
+		case 'title-slug':
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' look up by title=' . $post_data['post_title']);
 			$post = $this->get_post_by_title($post_data['post_title'], $post_data['post_type']);
 			if (NULL !== $post)
 				$target_post_id = $post->ID;
+
+if (0 === $target_post_id)
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not found by title.');
+
+			if (0 === $target_post_id && 'title-slug' === $mode) {
+				$post_name = $post_data['post_name'];
+				if (empty($post_name))
+					$post_name = sanitize_title($post_data['post_title']);
+				$args = array(
+					'name' => $post_name,
+					'post_type' => $post_data['post_type'],
+					'post_status' => 'any',
+					'numberposts' => 1,
+				);
+				$posts = get_posts($args);
+				if ($posts)
+					$target_post_id = abs($posts[0]->ID);
+			}
+
+if (0 === $target_post_id)
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not found by title or slug.');
 			break;
 
 		case 'slug':
+		case 'slug-title':
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' look up by slug=' . $post_data['post_name']);
 			$post_name = $post_data['post_name'];
 			if (empty($post_name)) {
@@ -68,13 +91,18 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' lookup post name "' . $post_name 
 			$posts = get_posts($args);
 			if ($posts)
 				$target_post_id = abs($posts[0]->ID);
+if (0 === $target_post_id)
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not found by slug.');
 
-			if (0 === $target_post_id) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not found by slug. search by title "' . $post_data['post_title'] . '"');
+			if (0 === $target_post_id && 'title-slug' === $mode) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' searching by title "' . $post_data['post_title'] . '"');
 				$post = $this->get_post_by_title($post_data['post_title'], $post_data['post_type']);
 				if (NULL !== $post)
 					$target_post_id = $post->ID;
 			}
+
+if (0 === $target_post_id)
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' not found by slug or title.');
 			break;
 
 		case 'id':

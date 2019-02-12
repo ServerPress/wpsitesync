@@ -9,16 +9,19 @@ class SyncOptions
 	private static $_options = NULL;
 	private static $_dirty = FALSE;
 
+	// the following are allowed values for specific settings
 	private static $_constraints = array(
-		'match_mode' => array('title', 'slug', 'id'),
+		'match_mode' => array('title', 'title-slug', 'slug', 'slug-title', 'id'),
 		'min_role' => array('author', 'editor', 'administrator'),
 		'roles' => '|author|editor|administrator|',
+		'report' => array('0', '1'),
 	);
 	const ROLE_DELIMITER = '|';
-	
+
 	/*
 	 * Options are:
 	 // TODO: rename to 'target'
+	 * 'installed' = install date
 	 * 'host' = Target site URL
 	 * 'username' = Target site login username
 	 * 'password' = Target site login password
@@ -31,6 +34,7 @@ class SyncOptions
 	 * 'match_mode' = method for matching content on Target: 'title', 'slug', 'id'
 	 * 'min_role' = minimum role required to be able to perform Sync operations #122
 	 * 'roles' = Roles allowed to perform Sync operations
+	 * 'report' = Enable reporting to serverpress.com
 	 */
 
 	/**
@@ -47,6 +51,7 @@ class SyncOptions
 
 		// perform fixup / cleanup on option values...migrating from previous configuration settings
 		$defaults = array(
+			'installed' => '',
 			'host' => '',
 			'username' => '',
 			'password' => '',
@@ -59,10 +64,20 @@ class SyncOptions
 			'match_mode' => 'title',
 			'min_role' => 'author',
 			'roles' => '|author|editor|administrator|',
+			'report' => '0',
 		);
 
 		self::$_options = array_merge($defaults, self::$_options);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' options=' . var_export(self::$_options, TRUE));
+
+		// update the install date if it's empty
+		if (empty(self::$_options['installed'])) {
+			// use method in activation code to set install date
+			include_once(dirname(dirname(__FILE__)) . '/install/activate.php');
+			$activate = new SyncActivate();
+			self::$_options['installed'] = $activate->get_install_date();
+			self::$_dirty = TRUE;
+		}
 
 		// adjust settings for roles if missing (newly added setting not configured; use defaults) #166
 		if (empty(self::$_options['roles']) || empty(self::$_options['min_role'])) {
@@ -79,7 +94,10 @@ class SyncOptions
 				break;
 			}
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; setting to: ' . self::$_options['roles']);
+			self::$_dirty = TRUE;
 		}
+
+		self::save_options();
 	}
 
 	/**
@@ -214,6 +232,7 @@ class SyncOptions
 		if (self::$_dirty) {
 			// assume options already exist - they are created at install time
 			update_option(self::OPTION_NAME, self::$_options);
+			self::$_dirty = FALSE;
 		}
 	}
 }

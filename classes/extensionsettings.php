@@ -26,7 +26,7 @@ class SyncExtensionSettings
 	{
 		echo '<h3>', __('Available Extensions:', 'wpsitesynccontent'), '</h3>';
 
-		$extens = $this->_get_extension_data();
+		$extens = $this->get_extension_data();
 //echo __LINE__, ':', var_export($extens, TRUE), PHP_EOL;
 		if (NULL === $extens) {
 			echo '<p>', __('<b>Error:</b> Temporarily unable to read data from https://serverpress.com', 'wpsitesynccontent'), '</p>';
@@ -55,13 +55,14 @@ class SyncExtensionSettings
 	 * Retrieves JSON encoded data that describes current WPSiteSync extension offerings
 	 * @return string JSON data representing extensions or FALSE if not available
 	 */
-	private function _get_extension_data()
+	public function get_extension_data()
 	{
 //$data = json_decode(file_get_contents(dirname(__FILE__) . '/syncextensions.json'));
 //return $data;
 
 		$data = get_transient(self::TRANSIENT_KEY);
 		if (FALSE === $data) {
+			// https://serverpress.com/wp-content/uploads/syncextensions.json
 			$url = self::CONTENT_URL . self::EXTENSIONS_DATA . '.json';
 			$response = wp_remote_get($url, array('sslverify' => FALSE));
 

@@ -58,12 +58,13 @@ class SyncLicensing
 		$lic = file_exists(dirname(dirname(__FILE__)) . '/license.tmp');
 
 		foreach (self::$_api_urls as $api) {
+			if (self::LICENSE_API_URL_PRIMARY === $api && $lic)
+				$api = str_replace('//', '//staging.', $api);
+
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api=' . $api . ' endpoint=' . var_export($endpoint, TRUE));
 			$this->_license_data = NULL;
 			if (NULL !== $endpoint)
 				$api = add_query_arg($endpoint, $api);
-			if (FALSE && $lic)
-				$api = str_replace('//', '//staging.', $api);
 
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling wp_remote_' . (self::MODE_GET == $mode ? 'get' : 'post') . '() on ' . $api . ' with ' . var_export($params, TRUE));
 

@@ -5,7 +5,7 @@ Plugin URI: https://wpsitesync.com
 Description: Provides features for easily Synchronizing Content between two WordPress sites.
 Author: WPSiteSync
 Author URI: http://wpsitesync.com
-Version: 1.5
+Version: 1.5.1
 Text Domain: wpsitesynccontent
 Domain path: /language
 
@@ -24,7 +24,7 @@ if (!class_exists('WPSiteSyncContent', FALSE)) {
 	 */
 	class WPSiteSyncContent
 	{
-		const PLUGIN_VERSION = '1.5';
+		const PLUGIN_VERSION = '1.5.1';
 		const PLUGIN_NAME = 'WPSiteSyncContent';
 
 		private static $_instance = NULL;
@@ -206,6 +206,14 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' network=' . var_export($network, 
 			// send usage information
 			if ('1' === SyncOptions::get('report', '0')) {
 				$usage = new SyncUsage();
+			}
+
+			// check version to see if database update is required #218
+			$v = SyncOptions::get('version', '');
+			if (empty($v) || version_compare($v, self::PLUGIN_VERSION, '<')) {
+				require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'install' . DIRECTORY_SEPARATOR . 'activate.php');
+				$activate = new SyncActivate();
+				$res = $activate->plugin_activation();
 			}
 		}
 

@@ -21,6 +21,7 @@ class SyncOptions
 	/*
 	 * Options are:
 	 // TODO: rename to 'target'
+	 * 'version' = current version, used for db updates
 	 * 'installed' = install date
 	 * 'host' = Target site URL
 	 * 'username' = Target site login username
@@ -52,6 +53,7 @@ class SyncOptions
 		// perform fixup / cleanup on option values...migrating from previous configuration settings
 		$defaults = array(
 			'installed' => '',
+			'version' => '',
 			'host' => '',
 			'username' => '',
 			'password' => '',

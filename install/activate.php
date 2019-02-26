@@ -296,6 +296,10 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sql=' . $sql);
 		}
 		$wpdb->show_errors($errors);						// reset errors #164
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - done');
+
+		// set the 'version' to the current plugin version #218
+		SyncOptions::set('version', WPSiteSyncContent::PLUGIN_VERSION);
+		SyncOptions::save_options();
 	}
 
 	/**

@@ -19,7 +19,7 @@ class SyncAdminDashboard
 		$log_model = new SyncLogModel();
 		$sent = $log_model->get_count('send');
 		$recv = $log_model->get_count('recv');
-		echo	sprintf(__('You haved Pushed %1$d pieces of Content and Received %2$d pieces of Content.', 'wpsitesynccontent'), $sent, $recv), '<br/>';
+		echo	sprintf(__('You have Pushed %1$d pieces of Content and Received %2$d pieces of Content.', 'wpsitesynccontent'), $sent, $recv), '<br/>';
 		echo '</p>';
 		echo '<p>';
 		echo	sprintf(__('Thank you for using <a href="%1$s" target="_blank">WPSiteSync for Content</a>. Please consider <a href="%2$s" target="_blank">rating us</a> on <a href="%2$s" target="_blank">WordPress.org</a>!', 'wpsitesynccontent'),

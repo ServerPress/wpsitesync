@@ -112,6 +112,10 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.5.1 - Feb 25, 2019 =
+* fix: resolved issue when Pushing posts where Featured Images were not set
+* fix: improved database alter process when plugin is updated
+
 = 1.5 - Feb 11, 2019 =
 * fix: improve detection of Target post being edited
 * fix: improve detection of images referenced in Content to ensure that they get Pushed to the Target site

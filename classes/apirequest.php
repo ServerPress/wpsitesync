@@ -1265,14 +1265,14 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' url=' . $url . ' parts=' . var_ex
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' new path=' . $path);
 
 		// return data array
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending image: ' . $url/*$path*/);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending image: ' . $url);
 		$path = $this->url_to_path($url);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' path: ' . $path);
 SyncDebug::log(__METHOD__.'() src_parts[host]=' . $src_parts['host'] . ' source_domain=' . $this->_source_domain);
 //		if ($src_parts['host'] === $this->_source_domain &&
 //			is_wp_error($this->upload_media($post_id, $path, NULL, $thumbnail_id == $post_id, $attach_id))) {
 		if ($src_parts['host'] === $this->_source_domain) {
-			$res = $this->upload_media($post_id, $path, NULL, $thumbnail_id == $post_id, $attach_id);
+			$res = $this->upload_media($post_id, $path, NULL, $thumbnail_id == $attach_id /* $post_id #217 */, $attach_id);
 			if (is_wp_error($res)) {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error on upload_media() returning FALSE');
 				return FALSE;
@@ -1285,7 +1285,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' hosted on CDN: ' . $src_parts['ho
 			if (NULL !== $att_post)
 				$url = $att_post->guid;
 SyncDebug::log(__METHOD__.'():' . __LINE__ . " upload_media({$post_id}, '{$url}', NULL, _, {$attach_id})");
-			if (is_wp_error($this->upload_media($post_id, $url, NULL, $thumbnail_id === $post_id, $attach_id)))
+			if (is_wp_error($this->upload_media($post_id, $url, NULL, $thumbnail_id === $attach_id /* $post_id #217 */, $attach_id)))
 				return FALSE;
 		} else {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' *** no image file sent to target url=' . $url);

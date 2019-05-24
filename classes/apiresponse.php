@@ -148,6 +148,7 @@ SyncDebug::log(__METHOD__.'() ' . var_export($json_data, TRUE));
 	 */
 	public function error_code($code, $data = NULL)
 	{
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting error code: ' . $code);
 		// only allow one error code
 		if (0 === $this->error_code) {
 			$this->error_code = abs($code);
@@ -258,7 +259,9 @@ SyncDebug::log(__METHOD__.'() ' . var_export($json_data, TRUE));
 	public function __toString()
 	{
 		$aOutput = array('error_code' => $this->error_code);
-		if (0 !== $this->error_code) {
+		if (isset($this->data['message'])) {
+			$aOutput['error_message'] = $this->data['message'];
+		} else if (0 !== $this->error_code) {
 			$msg = SyncApiRequest::error_code_to_string($this->error_code);
 			if (NULL === $msg)
 				$msg = sprintf(__('Unrecognized error: %d', 'wpsitesynccontent'),

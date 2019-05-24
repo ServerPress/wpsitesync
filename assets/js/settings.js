@@ -1,5 +1,5 @@
 /*
- * @copyright Copyright (C) 2014-2016 SpectrOMtech.com. - All Rights Reserved.
+ * @copyright Copyright (C) 2014-2019 SpectrOMtech.com. - All Rights Reserved.
  * @author SpectrOMtech.com <SpectrOMtech.com>
  * @url https://wpsitesync.com/license
  * The PHP code portions are distributed under the GPL license. If not otherwise stated, all images,

@@ -152,7 +152,7 @@ width: 100%;
 	background-color: #e5e5e5;;
 }
 
-.spectrom-sync-settings #connect-success-indicator { margin-left: 0.7rem; margin-top: 0.5rem; font-size: 120%; font-weight:bolder; }
+.spectrom-sync-settings #connect-success-indicator { margin-left: 0.7rem; margin-top: 0.4rem; font-size: 120%; font-weight:bold; }
 /* .spectrom-sync-settings #connect-success-indicator.fa-check { color: green; } */
 /* .spectrom-sync-settings #connect-success-indicator.fa-close { color: red; } */
 .spectrom-sync-settings #connect-success-indicator.dashicons-yes { color: green; }
@@ -228,3 +228,10 @@ margin-bottom: .5rem;
 	padding-left: .5rem;
 	padding-right: .5rem;
 }
+
+/* rules needed for Gutenberg UI */
+#spectrom-sync { background-color: transparent; }
+.edit-post-sidebar #spectrom_sync .inside { padding: 0 .5rem .5rem .5rem; background-color: white !important; }
+.edit-post-sidebar #spectrom_sync .inside.visible { display: block; }
+.edit-post-sidebar #spectrom_sync .inside.invisible { display: none; }
+.components-panel__body-toggle.components-button { background-color: white !important; }

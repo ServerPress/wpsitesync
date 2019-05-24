@@ -125,13 +125,16 @@ SyncDebug::log(__METHOD__."() sending action '{$action}' to filter 'spectrom_syn
 			if (FALSE === $res)
 				$response->error_code(SyncApiRequest::ERROR_UNRECOGNIZED_REQUEST);
 		}
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' completed API handling');
 
 		// make sure there are no errors
 		if (!$response->has_errors()) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response has no errors');
 			// allow add-ons to do post-processing on api actions
 			do_action('spectrom_sync_api_process', $action, $response, $this);
 		}
 
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending response to Source');
 		$response->send();		// calls die()
 	}
 
@@ -322,11 +325,13 @@ SyncDebug::log(' - found target post #' . $sync_data->target_content_id);
 			$this->post_id = $target_post_id;
 		}
 ###$post = NULL; ###
+
+		$post_model = new SyncPostModel();
+
 		// Get post by title, if new
 		if (NULL === $post) {
 			$mode = $this->get_header(self::HEADER_MATCH_MODE, 'title');
 //SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' - still no post found - use lookup_post() mode=' . $mode);
-			$post_model = new SyncPostModel();
 			$target_post_id = $post_model->lookup_post($post_data, $mode);
 		}
 
@@ -346,8 +351,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking post type: ' . $post_dat
 		}
 
 		// check if post is currently being edited
-		$post_model = new SyncPostModel();
-		if ($post_model->is_post_locked($target_post_id)) {
+		if (0 !== $target_post_id && $post_model->is_post_locked($target_post_id)) {
 			$user = $post_model->get_post_lock_user();
 			$response->error_code(SyncApiRequest::ERROR_CONTENT_LOCKED, $user['user_login']);
 			return;
@@ -1075,7 +1079,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' offset=' . $idx . ' found [' . $s
 	{
 /*
 		[caption id="attachment_1995" align="aligncenter" width="808"]
-			<img class="wp-image-1995 size-full" src="http://www.catholicweekly.com.au/wp-content/uploads/2015/09/shutterstock_137446907.jpg"
+			<img class="wp-image-1995 size-full" src="http://{domain}/wp-content/uploads/2015/09/shutterstock_137446907.jpg"
 			alt="shutterstock_137446907" width="808" height="577" /> Photo: Shutterstock
 		[/caption]
 add_shortcode('wp_caption', 'img_caption_shortcode');
@@ -1343,6 +1347,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no file upload information provid
 
 		$featured = isset($_POST['featured']) ? abs($_POST['featured']) : 0;
 		$path = $_FILES['sync_file_upload']['name'];
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' featured=' . var_export($featured, TRUE) . ' path=' . $path);
 
 		// check file type
 		$img_type = wp_check_filetype($path);
@@ -1487,7 +1492,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' inserting attachment failed');
 
 		if (!$has_error) {
 			// image handling successful- perform logging
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image successfully handled');
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' media successfully handled');
 			// set this post as featured image, if specified.
 			if ($this->post('featured', 0))
 				set_post_thumbnail($target_post_id /*$this->post('post_id')*/, $this->media_id);

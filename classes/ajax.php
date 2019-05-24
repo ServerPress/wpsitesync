@@ -108,6 +108,7 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 	 */
 	public function verify_connection(SyncApiResponse $response)
 	{
+		// TODO: rework and remove this if possible
 		$input = new SyncInput();
 		$settings = array_merge(
 			SyncOptions::get_all(), // get_option(SyncOptions::OPTION_NAME),

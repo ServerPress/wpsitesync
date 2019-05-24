@@ -79,18 +79,28 @@ class SyncAdmin
 		// check for minimum user role settings #122
 		if (!SyncOptions::has_cap())
 			return;
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' registering "sync"');
 		wp_register_script('sync', WPSiteSyncContent::get_asset('js/sync.js'), array('jquery'), WPSiteSyncContent::PLUGIN_VERSION, TRUE);
 		wp_register_script('sync-settings', WPSiteSyncContent::get_asset('js/settings.js'), array('jquery'), WPSiteSyncContent::PLUGIN_VERSION, TRUE);
 
 		wp_register_style('sync-admin', WPSiteSyncContent::get_asset('css/sync-admin.css'), array(), WPSiteSyncContent::PLUGIN_VERSION, 'all');
 
 		$screen = get_current_screen();
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' screen id=' . $screen->id . ' action=' . $screen->action);
 		// load resources only on Sync settings page or page/post editor
-		if ('post' === $screen->id || 'page' === $screen->id ||
+		if (/*'post' === $screen->id || 'page' === $screen->id || */
 			'settings_page_sync' === $screen->id ||
-			in_array($screen->id, apply_filters('spectrom_sync_allowed_post_types', array()))) {
-			if ('post.php' === $hook_suffix && 'add' !== $screen->action)
+			in_array($screen->id, array('post', 'edit-post', 'page', 'edit-page')) || 
+			in_array($screen->id, apply_filters('spectrom_sync_allowed_post_types', array('post', 'page')))) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' allowed post type');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' hook suffix=' . $hook_suffix);
+			// check for post editor page page; or post new page and Gutenberg is present
+			if (('post.php' === $hook_suffix && 'add' !== $screen->action) ||
+				('post-new.php' === $hook_suffix && $this->is_gutenberg())) {
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' enqueueing "sync"');
 				wp_enqueue_script('sync');
+			}
+			wp_enqueue_script('sync-settings');
 
 			$option_data = array('site_key' => SyncOptions::get('site_key'));
 			wp_localize_script('sync-settings', 'syncdata', $option_data);
@@ -113,16 +123,19 @@ class SyncAdmin
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' continuing');
 
 		$target = SyncOptions::get('host', NULL);
-		$auth = SyncOptions::get('auth', 0);
+		$auth = SyncOptions::get_int('auth', 0);
 
 		// make sure we have a Target and it's authenticated
 		if (!empty($target) && 1 === $auth) {
 			$screen = get_current_screen();
 			$post_types = apply_filters('spectrom_sync_allowed_post_types', array('post', 'page'));     // only show for certain post types
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post types=' . implode('|', $post_types));
+//SyncDebug::log(__MEthOD__.'():' . __LINE__ . ' screen action=' . $screen->action);
+			// make sure it's an allowed post type and it's not the add post page...unless it's Gutenberg
 			if (in_array($post_type, $post_types) &&
-				'add' !== $screen->action) {		// don't display metabox while adding content
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' allowed post type');
+				('add' !== $screen->action || $this->is_gutenberg())) {		// don't display metabox while adding content...unless Gutenberg
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling add_meta_box()');
+//die(__METHOD__.'():' . __LINE__ . ' screen: ' . var_export($screen, TRUE));
 				$dir = plugin_dir_url(dirname(__FILE__));
 				$img = '<img id="sync-logo" src="' . $dir . 'assets/imgs/wpsitesync-logo-blue.png" width="125" height="45" alt="' .
 //				$img = '<img id="sync-logo" src="' . $dir . 'assets/imgs/wpsitesync-logo.svg" width="125" height="45" alt="' .
@@ -141,6 +154,118 @@ class SyncAdmin
 			}
 //else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' disallowed post type');
 		}
+	}
+
+	/**
+	 * Checks to see if Gutenberg is present (using function and /or WP version) and the page
+	 * is using Gutenberg
+	 * @return boolean TRUE if Gutenberg is present and used on current page
+	 */
+	private function is_gutenberg()
+	{
+		if (function_exists('is_gutenberg_page') && is_gutenberg_page())
+			return TRUE;
+		if (version_compare($GLOBALS['wp_version'], '5.0', '>=') && $this->is_gutenberg_page())
+			return TRUE;
+		return FALSE;
+	}
+
+	/**
+	 * Checks whether we're currently loading a Gutenberg page
+	 * @return boolean Whether Gutenberg is being loaded.
+	 */
+	private function is_gutenberg_page()
+	{
+		// taken from Gutenberg Plugin v4.8
+		if (!is_admin())
+			return FALSE;
+
+		/*
+		 * There have been reports of specialized loading scenarios where `get_current_screen`
+		 * does not exist. In these cases, it is safe to say we are not loading Gutenberg.
+		 */
+		if (!function_exists('get_current_screen'))
+			return FALSE;
+
+		if ('post' !== get_current_screen()->base)
+			return FALSE;
+
+		if (isset($_GET['classic-editor']))
+			return FALSE;
+
+		global $post;
+		if (!$this->gutenberg_can_edit_post($post))
+			return FALSE;
+
+		return TRUE;
+	}
+
+	/**
+	 * Return whether the post can be edited in Gutenberg and by the current user.
+	 * @param int|WP_Post $post Post ID or WP_Post object.
+	 * @return bool Whether the post can be edited with Gutenberg.
+	 */
+	private function gutenberg_can_edit_post($post)
+	{
+		// taken from Gutenberg Plugin v4.8
+		$post = get_post($post);
+		$can_edit = TRUE;
+
+		if (!$post)
+			$can_edit = FALSE;
+
+		if ($can_edit && 'trash' === $post->post_status)
+			$can_edit = FALSE;
+
+		if ($can_edit && !$this->gutenberg_can_edit_post_type($post->post_type))
+			$can_edit = FALSE;
+
+		if ($can_edit && !current_user_can('edit_post', $post->ID))
+			$can_edit = FALSE;
+
+		// Disable the editor if on the blog page and there is no content.
+		// TODO: this is probably not a necessary check for WPSS
+		if ($can_edit && abs(get_option('page_for_posts')) === $post->ID && empty($post->post_content))
+			$can_edit = FALSE;
+
+		/**
+		 * Filter to allow plugins to enable/disable Gutenberg for particular post.
+		 *
+		 * @param bool $can_edit Whether the post can be edited or not.
+		 * @param WP_Post $post The post being checked.
+		 */
+		return apply_filters('gutenberg_can_edit_post', $can_edit, $post);
+	}
+
+	/**
+	 * Return whether the post type can be edited in Gutenberg.
+	 *
+	 * Gutenberg depends on the REST API, and if the post type is not shown in the
+	 * REST API, then the post cannot be edited in Gutenberg.
+	 *
+	 * @param string $post_type The post type.
+	 * @return bool Whether the post type can be edited with Gutenberg.
+	 */
+	private function gutenberg_can_edit_post_type($post_type)
+	{
+		$can_edit = TRUE;
+		if (!post_type_exists($post_type))
+			$can_edit = FALSE;
+
+		if (!post_type_supports($post_type, 'editor'))
+			$can_edit = FALSE;
+
+		$post_type_object = get_post_type_object($post_type);
+		if ($post_type_object && !$post_type_object->show_in_rest)
+			$can_edit = FALSE;
+
+		/**
+		 * Filter to allow plugins to enable/disable Gutenberg for particular post types.
+		 *
+		 * @param bool   $can_edit  Whether the post type can be edited or not.
+		 * @param string $post_type The post type being checked.
+		 */
+		return apply_filters('gutenberg_can_edit_post_type', $can_edit, $post_type);
 	}
 
 	/**
@@ -220,6 +345,7 @@ class SyncAdmin
 		do_action('spectrom_sync_metabox_operations', $error);
 		echo '</div>';
 
+		// container to hold messages used in WPSiteSync UI
 		echo '<div style="display:none">';
 		echo '<div id="sync-working-msg"><img src="', WPSiteSyncContent::get_asset('imgs/ajax-loader.gif'), '" />', '</div>';
 		echo '<div id="sync-success-msg">', __('Content successfully sent to Target system.', 'wpsitesynccontent'), '</div>';
@@ -227,15 +353,12 @@ class SyncAdmin
 			echo '<div id="sync-pull-msg"><div style="color: #0085ba;">', __('Please activate the Pull extension.', 'wpsitesynccontent'), '</div></div>';
 		echo '<div id="sync-runtime-err-msg">', __('A PHP runtime error occurred while processing your request. Examine Target log files for more information.', 'wpsitesynccontent'), '</div>';
 		echo '<div id="sync-error-msg">', __('Error: error encountered during request.', 'wpsitesynccontent'), '</div>';
+		echo '<span id="sync-msg-working">', __('Pushing Content to Target...', 'wpsitesynccontent'), '</span>';
+		echo '<span id="sync-msg-update-changes"><b>', __('Please UPDATE/Save your changes in order to Sync.', 'wpsitesynccontent'), '</b></span>';
+		do_action('spectrom_sync_ui_messages');
 		echo '</div>';
 
 		echo '</div>'; // #sync-contents
-
-		echo '<div style="display:none">';
-		echo '<span id="sync-msg-working">', __('Pushing Content to Target...', 'wpsitesynccontent'), '</span>';
-		echo '<span id="sync-msg-update-changes"><b>', __('Please UPDATE your changes in order to Sync.', 'wpsitesynccontent'), '</b></span>';
-		do_action('spectrom_sync_ui_messages');
-		echo '</div>';
 	}
 
 	/**

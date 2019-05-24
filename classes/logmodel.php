@@ -17,6 +17,7 @@ class SyncLogModel
 		`source_user` 		BIGINT(20) NOT NULL,
 		`source_site` 		VARCHAR(200) NOT NULL,
 		`source_site_key`	VARCHAR(40) NOT NULL,
+		`type`				varchar(4) NOT NULL DEFAULT 'recv'
  */
 
 	public function __construct()
@@ -45,6 +46,11 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' logging: ' . var_export($data, TR
 		return $wpdb->insert($this->_log_table, $data);
 	}
 
+	/**
+	 * Return a count of the number of entries in the log table of a given type
+	 * @param string $type either 'send' for sent calls to this site or 'recv' for recevied calls by this site
+	 * @return int
+	 */
 	public function get_count($type = 'recv')
 	{
 		if (empty($type))
@@ -57,6 +63,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' logging: ' . var_export($data, TR
 				WHERE `type`='{$type}'";
 		global $wpdb;
 		$res = $wpdb->get_col($sql);
+		if (NULL === $res)
+			return 0;
 		return $res[0];
 	}
 }

@@ -157,7 +157,8 @@ class SyncSettings extends SyncInput
 		if ('extensions' !== $this->_tab)
 			submit_button();
 		echo '</form>';
-		echo '<p>', __('WPSiteSync for Content Site key: ', 'wpsitesynccontent'), '<b>', SyncOptions::get('site_key'), '</b></p>';
+		echo '<p>', sprintf(__('WPSiteSync for Content Site key: %1$s', 'wpsitesynccontent'),
+			SyncOptions::get('site_key')), '<b>', '</b></p>';
 		echo '</div><!-- #tab_container -->';
 	}
 
@@ -171,6 +172,10 @@ class SyncSettings extends SyncInput
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' screen=' . var_export($screen, TRUE));
 //		if (NULL !== $screen && 'settings_page_sync' !== $screen->id)
 //			return;
+
+		// check that current user is capable of performing operation
+		if (!current_user_can('manage_options') || !SyncOptions::has_cap())
+			return;
 
 		$this->_tab = $this->get('tab', 'general');
 //SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
@@ -204,24 +209,6 @@ class SyncSettings extends SyncInput
 	{
 //SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
 		$data = $option_values = SyncOptions::get_all(); // $this->_options;
-
-/*		$default_values = apply_filters('spectrom_sync_default_settings',
-			// TODO: get this list from the SyncOptions class
-			array(
-				'host' => '',
-				'username' => '',
-				'password' => '',
-				'auth' => 0,
-				'strict' => '1',
-				'salt' => '',
-				'min_role' => '',
-				'remove' => '0',
-				'match_mode' => 'title',
-			)
-		);
-
-		// Parse option values into predefined keys, throw the rest away.
-		$data = shortcode_atts($default_values, $option_values); */
 
 		$section_id = 'sync_section';
 
@@ -258,7 +245,7 @@ class SyncSettings extends SyncInput
 				'value' => $data['host'],
 				'placeholder' => empty($data['host']) ? 'http://' : '',
 				'size' => '50',
-				'description' => __('http://example.com - This is the URL that your Content will be Pushed to. If WordPress is installed in a subdirectory, include the subdirectory.', 'wpsitesynccontent'),
+				'description' => __('https://example.com - This is the URL that your Content will be Pushed to. If WordPress is installed in a subdirectory, include the subdirectory.', 'wpsitesynccontent'),
 			)
 		);
 
@@ -618,7 +605,7 @@ class SyncSettings extends SyncInput
 	{
 //SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' values=' . var_export($values, TRUE));
-		if (!current_user_can('manage_options'))
+		if (!current_user_can('manage_options') || !SyncOptions::has_cap())
 			return array();
 
 //SyncDebug::log(__METHOD__.'() values=' . var_export($values, TRUE));
@@ -636,7 +623,7 @@ class SyncSettings extends SyncInput
 			$values['roles'] = array('administrator' => 'on');
 
 		foreach ($values as $key => $value) {
-SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
+//SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
 			if (empty($values[$key]) && 'password' === $key) {
 				// ignore this so that passwords are not required on every settings update
 			} else {
@@ -648,7 +635,9 @@ SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
 						add_settings_error('sync_host_password', 'missing-password', __('When changing Target site, a password is required.', 'wpsitesynccontent'));
 						$out[$key] = $settings[$key];
 					} else {
-						if (FALSE === $this->_is_valid_url($value)) {
+						if (empty($value)) {
+							// do nothing
+						} else if (FALSE === $this->_is_valid_url($value)) {
 							add_settings_error('sync_options_group', 'invalid-url', __('Invalid URL.', 'wpsitesynccontent'));
 							$out[$key] = $settings[$key];
 						} else {
@@ -793,7 +782,7 @@ SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
 		$screen->set_help_sidebar(
 			'<p><strong>' . __('For more information:', 'wpsitesynccontent') . '</strong></p>' .
 			'<p>' . sprintf(__('Visit the <a href="%s" target="_blank">documentation</a> on the WPSiteSync for Content website.', 'wpsitesynccontent'),
-						esc_url('http://wpsitesync.com/knowledgebase/use-wpsitesync-content/')) . '</p>' .
+						esc_url('https://wpsitesync.com/knowledgebase/use-wpsitesync-content/')) . '</p>' .
 			'<p>' . sprintf(
 						__('<a href="%1$s" target="_blank">Post an issue</a> on <a href="%2$s" target="_blank">GitHub</a>.', 'wpsitesynccontent'),
 						esc_url('https://github.com/ServerPress/wpsitesync/issues'),

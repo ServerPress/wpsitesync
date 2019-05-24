@@ -10,8 +10,8 @@ class SyncApiRequest implements SyncApiHeaders
 	const ERROR_NOT_INSTALLED = 3;
 	const ERROR_BAD_CREDENTIALS = 4;
 	const ERROR_SESSION_EXPIRED = 5;
-	const ERROR_CONTENT_EDITING = 6;			// TODO: add checks in SyncApiController
-	const ERROR_CONTENT_LOCKED = 7;				// TODO: add checks in SyncApiController
+	const ERROR_CONTENT_EDITING = 6;   // TODO: add checks in SyncApiController
+	const ERROR_CONTENT_LOCKED = 7;	// TODO: add checks in SyncApiController
 	const ERROR_POST_DATA_INCOMPLETE = 8;
 	const ERROR_USER_NOT_FOUND = 9;
 	const ERROR_FILE_UPLOAD = 10;
@@ -36,33 +36,30 @@ class SyncApiRequest implements SyncApiHeaders
 	const ERROR_PHP_ERROR_ON_TARGET = 29;
 	const ERROR_SSL_PROTOCOL_ERROR = 30;
 	const ERROR_WORDFENCE_BLOCKED = 31;
-
 	const NOTICE_FILE_EXISTS = 1;
 	const NOTICE_CONTENT_SYNCD = 2;
 	const NOTICE_INTERNAL_ERROR = 3;
 
 	// TODO: rename to $target
-	public $host = NULL;						// URL of the host site we're pushing to
-	public $id_refs = array();					// list if image/content references that need to be adjusted
-	public $gutenberg_queue = array();			// list of Gutenberg post IDs that need to be parsed for references
-	public $gutenberg_processed = array();		// list of Gutenberg post IDs that have been processed (used to skip duplicate references)
-	public $post_id = 0;						// post ID being processed
-
-	private $_source_domain = NULL;				// domain sending the post information
-
-	private $_response = NULL;					// the SyncApiResponse instance for the current request
-
+	public $host = NULL;	  // URL of the host site we're pushing to
+	public $id_refs = array();	 // list if image/content references that need to be adjusted
+	public $gutenberg_queue = array();   // list of Gutenberg post IDs that need to be parsed for references
+	public $gutenberg_processed = array();  // list of Gutenberg post IDs that have been processed (used to skip duplicate references)
+	public $post_id = 0;	  // post ID being processed
+	private $_source_domain = NULL;	// domain sending the post information
+	private $_response = NULL;	 // the SyncApiResponse instance for the current request
 	private $_user_id = 0;
 	private $_target_data = array();
 	private $_auth_cookie = '';
 	private $_queue = array();
-	private $_processing = FALSE;				// set to TRUE when processing the $_queue
-	private $_sent_images = array();			// list of image attachments/references within post
+	private $_processing = FALSE;	// set to TRUE when processing the $_queue
+	private $_sent_images = array();   // list of image attachments/references within post
 
 	/**
 	 * Initializes the cookies and nonce, throws an exception if it fails any of the validations.
 	 * @param array $target_data A set of options data with credentials for Target system.
 	 */
+
 	public function __construct($target_data = array())
 	{
 		$this->_user_id = get_current_user_id();
@@ -74,7 +71,7 @@ class SyncApiRequest implements SyncApiHeaders
 
 		if (isset($this->_target_data['host']))
 			$this->host = $this->_target_data['host'];
-		$this->host = apply_filters('spectrom_sync_target_url', $this->host, $this);	// helpful in handling multiple targets #50
+		$this->host = apply_filters('spectrom_sync_target_url', $this->host, $this); // helpful in handling multiple targets #50
 	}
 
 	/**
@@ -86,9 +83,8 @@ class SyncApiRequest implements SyncApiHeaders
 	 */
 	public function api($action, $data = array(), $remote_args = array())
 	{
-SyncDebug::log(__METHOD__.'() action="' . $action . '"');
+SyncDebug::log(__METHOD__ . '() action="' . $action . '"');
 		// TODO: check if there's a configured Target site and Source site has a key
-
 //		if (!is_array($data))
 //			$data = array();
 		$this->_response = $response = new SyncApiResponse();
@@ -106,7 +102,7 @@ SyncDebug::log(__METHOD__.'() action="' . $action . '"');
 		}
 
 		// TODO: do some sanity checking on $data contents
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking action: ' . $action);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' checking action: ' . $action);
 		switch ($action) {
 		case 'auth':
 			// authentication handled by _auth() above. This is here to avoid falling into 'default' case
@@ -120,7 +116,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking action: ' . $action);
 			break;
 		case 'upload_media':
 			$data = apply_filters('spectrom_sync_api_request_media', $data, $action, $remote_args);
-			$data = $this->_media($data, $remote_args);		// converts $data to a string
+			$data = $this->_media($data, $remote_args);  // converts $data to a string
 			break;
 		case 'getinfo':
 		case 'push_complete':
@@ -128,15 +124,13 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking action: ' . $action);
 			break;
 		default:
 			// allow add-ons to create the $data object for non-standard api actions
-SyncDebug::log(__METHOD__.'() sending action "' . $action . '" to filter \'spectrom_sync_api_request_action\'');
+SyncDebug::log(__METHOD__ . '() sending action "' . $action . '" to filter \'spectrom_sync_api_request_action\'');
 			$data = apply_filters('spectrom_sync_api_request_action', $data, $action, $remote_args);
 			break;
 		}
 // TODO: reduce logging
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($data, TRUE));
-
 		// check value returned from API call
-
 		// check for filter returning a WP_Error instance
 		if (is_wp_error($data)) {
 			$response->error_code(abs($data->get_error_code()));
@@ -151,7 +145,7 @@ SyncDebug::log(__METHOD__.'() sending action "' . $action . '" to filter \'spect
 		$data = apply_filters('spectrom_sync_api_request', $data, $action, $remote_args);
 
 		// merge the body of the post with any other wp_remote_() arguments passed in
-		$remote_args = array_merge($remote_args, array('body' => $data));	// new $data content should override anything in $remote_args
+		$remote_args = array_merge($remote_args, array('body' => $data)); // new $data content should override anything in $remote_args
 		// setup the SYNC arguments
 		global $wp_version;
 //		$model = new SyncModel();
@@ -160,7 +154,6 @@ SyncDebug::log(__METHOD__.'() sending action "' . $action . '" to filter \'spect
 		$remote_args['headers'][self::HEADER_SYNC_VERSION] = WPSiteSyncContent::PLUGIN_VERSION;
 		$remote_args['headers'][self::HEADER_WP_VERSION] = $wp_version;
 		$remote_args['headers'][self::HEADER_SOURCE] = site_url();
-//		$remote_args['headers'][self::HEADER_SITE_KEY] = WPSiteSyncContent::get_option('site_key'); // $model->generate_site_key();
 		$remote_args['headers'][self::HEADER_SITE_KEY] = SyncOptions::get('site_key'); // $model->generate_site_key();
 		$remote_args['headers'][self::HEADER_MATCH_MODE] = SyncOptions::get('match_mode', 'title');
 //SyncDebug::log(__METHOD__.'() plugin sitekey=' . WPSiteSyncContent::get_option('site_key') . ' // option sitekey=' . SyncOptions::get('site_key'));
@@ -169,7 +162,7 @@ SyncDebug::log(__METHOD__.'() sending action "' . $action . '" to filter \'spect
 
 		// send data where it's going
 		$url = $this->host . '?pagename=' . WPSiteSyncContent::API_ENDPOINT . '&action=' . $action;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending API request to ' . $url, TRUE);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' sending API request to ' . $url, TRUE);
 
 		$remote_args = apply_filters('spectrom_sync_api_arguments', $remote_args, $action);
 #if (is_array($remote_args)) {
@@ -179,7 +172,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending API request to ' . $url, 
 
 		$request = wp_remote_post($url, $remote_args);
 		if (is_wp_error($request)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error in wp_remote_post(): ' . var_export($request, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' error in wp_remote_post(): ' . var_export($request, TRUE));
 			// handle error
 			if (isset($request->errors['http_request_failed']) &&
 				FALSE !== stripos(var_export($request->errors['http_request_failed'], TRUE), 'Unknown SSL protocol error in connection'))
@@ -188,7 +181,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error in wp_remote_post(): ' . va
 				$response->error_code(self::ERROR_REMOTE_REQUEST_FAILED, $request->get_error_message());
 		} else {
 			$response->result = $request;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api result from "' . $action . '": ' . var_export($request, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' api result from "' . $action . '": ' . var_export($request, TRUE));
 
 			// validate the host and credentials
 			if (abs($request['response']['code']) >= 400 &&
@@ -209,14 +202,13 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' api result from "' . $action . '"
 			if (!$response->has_errors()) {
 				// API request went through, check for error_code returned in JSON results
 				$request_body = $this->_adjust_response_body($request['body']);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response body: ' . $request_body); // $request['body']);
-				$response->response = json_decode($request_body /*$request['body']*/);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' response body: ' . $request_body); // $request['body']);
+				$response->response = json_decode($request_body /* $request['body'] */);
 			}
 			// TODO: convert error/notice codes into strings at this point.
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' received response from Target for "' . $action . '":');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' received response from Target for "' . $action . '":');
 //SyncDebug::log(__METHOD__.'():' . __LINE__ .' body: ' . $request_body);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - ' . var_export($response->response, TRUE));
-
 			// examine the Target response's error codes and assign them to the local system's response object
 			// TODO: Use SyncResponse::copy() method
 			if (isset($response->response->error_code)) {
@@ -246,86 +238,85 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' received response from Target for
 //}
 			if (isset($response->response)) {
 				do_action('spectrom_sync_api_request_response', $action, $remote_args, $response);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response: ' . var_export($response, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' response: ' . var_export($response, TRUE));
 				// only report success if no other error codes have been added to response object
 //$response->response->error_code) { //
 				if (0 === abs($response->response->error_code)) {
 					$response->success(TRUE);
 					// if it was an authentication request, store the auth cookies in user meta
 					// TOOD: need to do this differently to support auth cookies from multiple Targets
-
 					// perform logging
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' perform after action logging "' . $action . '"');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' perform after action logging "' . $action . '"');
 					switch ($action) {
-					case 'auth':					// no logging, but add to source table and set target site_key
-						if (isset($response->response->data)) {
-							// TODO: deprecated
-							update_user_meta($this->_user_id, 'spectrom_site_cookies', $response->response->data->auth_cookie);
-							update_user_meta($this->_user_id, 'spectrom_site_nonce', $response->response->data->access_nonce);
-							update_user_meta($this->_user_id, 'spectrom_site_target_uid', $response->response->data->user_id);
+						case 'auth':	 // no logging, but add to source table and set target site_key
+							if (isset($response->response->data)) {
+								// TODO: deprecated
+								update_user_meta($this->_user_id, 'spectrom_site_cookies', $response->response->data->auth_cookie);
+								update_user_meta($this->_user_id, 'spectrom_site_nonce', $response->response->data->access_nonce);
+								update_user_meta($this->_user_id, 'spectrom_site_target_uid', $response->response->data->user_id);
 
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' saving auth token');
-							// store the returned token for later authentication uses
-							$sources_model = new SyncSourcesModel();
-							$source = array(
-								'domain' => $data['host'],
-								'site_key' => '',						// indicates that it's a Target's entry on the Source
-								'auth_name' => $data['username'],
-								'token' => $response->response->data->token,
-							);
-							$added = $sources_model->add_source($source);
-							if (FALSE === $added) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error storing in database');
-								$response->error_code(SyncApiRequest::ERROR_CANNOT_WRITE_TOKEN);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' saving auth token');
+								// store the returned token for later authentication uses
+								$sources_model = new SyncSourcesModel();
+								$source = array(
+									'domain' => $data['host'],
+									'site_key' => '', // indicates that it's a Target's entry on the Source
+									'auth_name' => $data['username'],
+									'token' => $response->response->data->token,
+								);
+								$added = $sources_model->add_source($source);
+								if (FALSE === $added) {
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' error storing in database');
+									$response->error_code(SyncApiRequest::ERROR_CANNOT_WRITE_TOKEN);
+								}
 							}
-						}
-						break;
-					case 'push':
-						// perform logging
-						$log_data = array(
-							'post_id' => abs($data['post_id']),
-							'post_title' => $data['post_data']['post_title'],
-							'operation' => 'push',
-							'source_user' => get_current_user_id(),
-							'source_site' => parse_url(SyncOptions::get('target'), PHP_URL_HOST), // post('origin'),
-							'source_site_key' => SyncOptions::get('site_key'),
-							'target_user' => 0,
-							'type' => 'send',
-						);
-						$log_model = new SyncLogModel();
-						$log_model->log($log_data);
+							break;
+						case 'push':
+							// perform logging
+							$log_data = array(
+								'post_id' => abs($data['post_id']),
+								'post_title' => $data['post_data']['post_title'],
+								'operation' => 'push',
+								'source_user' => get_current_user_id(),
+								'source_site' => parse_url(SyncOptions::get('target'), PHP_URL_HOST), // post('origin'),
+								'source_site_key' => SyncOptions::get('site_key'),
+								'target_user' => 0,
+								'type' => 'send',
+							);
+							$log_model = new SyncLogModel();
+							$log_model->log($log_data);
 						// intentionally fall through to 'upload_media' case
 
-					case 'upload_media':
-						// TODO: get post ID for pdf attachments
-						if (isset($data['post_id']) && isset($response->response->data->post_id)) {
-							$sync_data = array(
-								'site_key' => SyncOptions::get('site_key'), //$response->response->data->site_key,
-								'source_content_id' => abs($data['post_id']),
-								'target_content_id' => $response->response->data->post_id,
-								'target_site_key' => SyncOptions::get('target_site_key'),
-							);
-							if ('upload_media' === $action)
-								$sync_data['content_type'] = 'media';
+						case 'upload_media':
+							// TODO: get post ID for pdf attachments
+							if (isset($data['post_id']) && isset($response->response->data->post_id)) {
+								$sync_data = array(
+									'site_key' => SyncOptions::get('site_key'), //$response->response->data->site_key,
+									'source_content_id' => abs($data['post_id']),
+									'target_content_id' => $response->response->data->post_id,
+									'target_site_key' => SyncOptions::get('target_site_key'),
+								);
+								if ('upload_media' === $action)
+									$sync_data['content_type'] = 'media';
 
-							$model = new SyncModel();
-							$model->save_sync_data($sync_data);
-						}
-						break;
-					default:
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - triggering "spectrom_sync_action_success" on action ' . $action . ' data=' . var_export($data, TRUE));
-						if (isset($data['post_id']))
-							do_action('spectrom_sync_action_success', $action, abs($data['post_id']), $data, $response);
+								$model = new SyncModel();
+								$model->save_sync_data($sync_data);
+							}
+							break;
+						default:
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' - triggering "spectrom_sync_action_success" on action ' . $action . ' data=' . var_export($data, TRUE));
+							if (isset($data['post_id']))
+								do_action('spectrom_sync_action_success', $action, abs($data['post_id']), $data, $response);
 					}
 				}
-else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error code=' . $response->get_error_code());
+else SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' error code=' . $response->get_error_code());
 			}
 
 			// initial API call complete- check for anything in the queue
 			if (!$this->_processing && apply_filters('spectrom_sync_process_queue', TRUE, $action, $this)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' starting queue processing');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' starting queue processing');
 				$this->_process_queue($remote_args, $response);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' done processing queue');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' done processing queue');
 			}
 		}
 
@@ -343,7 +334,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' done processing queue');
 		$body = trim($body);
 		$error = FALSE;
 		if ('{' !== $body[0]) {
-SyncDebug::log(__METHOD__.'() found extra data in response content: ' . var_export($body, TRUE));
+SyncDebug::log(__METHOD__ . '() found extra data in response content: ' . var_export($body, TRUE));
 			// checks to see that the JSON payload starts with '{"error_code":' - which is the initial data send in a SyncApiResponse object
 			$pos = strpos($body, '{"error_code":');
 			if (FALSE !== $pos)
@@ -353,7 +344,7 @@ SyncDebug::log(__METHOD__.'() found extra data in response content: ' . var_expo
 			$pos = strrpos($body, '}');
 			if ($pos !== strlen($body) - 1)
 				$body = substr($body, 0, $pos + 1);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response body=' . var_export($body, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' response body=' . var_export($body, TRUE));
 		}
 		if (FALSE === strpos($body, '{')) {
 			// no JSON data present in response
@@ -369,29 +360,29 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response body=' . var_export($bod
 	 */
 	private function _process_queue($remote_args, $response)
 	{
-SyncDebug::log(__METHOD__.'()');
+SyncDebug::log(__METHOD__ . '()');
 		if ($this->_processing || $response->has_errors()) {
-SyncDebug::log(__METHOD__.'() queue already being processed');
+SyncDebug::log(__METHOD__ . '() queue already being processed');
 			return;
 		}
 		$this->_processing = TRUE;
 
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' queue has ' . count($this->_queue) . ' entries');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' queue has ' . count($this->_queue) . ' entries');
 		do_action('spectrom_sync_push_queue_start');
 		foreach ($this->_queue as $queue) {
 			$action = $queue['action'];
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found action ' . $action);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found action ' . $action);
 			$res = $this->api($action, $queue['data'], $remote_args);
 			// exit processing if one of the queued API calls has an error
 			if ($res->has_errors()) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' got an error from the Target: ' . var_export($res, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' got an error from the Target: ' . var_export($res, TRUE));
 				$response->error_code($res->get_error_code(), $res->get_error_data());
 				break;
 			}
 		}
 		// signal end of queue. has to be done before setting _processing to FALSE
 		do_action('spectrom_sync_push_queue_complete', $this);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' queue processing complete');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' queue processing complete');
 
 		$this->_processing = FALSE;
 	}
@@ -403,7 +394,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' queue processing complete');
 	 */
 	private function _add_queue($action, $data)
 	{
-SyncDebug::log(__METHOD__.'() adding "' . $action . '" to queue'); // with ' . var_export($data, TRUE));
+SyncDebug::log(__METHOD__ . '() adding "' . $action . '" to queue'); // with ' . var_export($data, TRUE));
 		$this->_queue[] = array('action' => $action, 'data' => $data);
 	}
 
@@ -411,6 +402,7 @@ SyncDebug::log(__METHOD__.'() adding "' . $action . '" to queue'); // with ' . v
 	{
 		return $this->_queue;
 	}
+
 	public function clear_queue()
 	{
 		$this->_queue = array();
@@ -436,22 +428,23 @@ SyncDebug::log(__METHOD__.'() adding "' . $action . '" to queue'); // with ' . v
 	 */
 	public function auth()
 	{
-SyncDebug::log(__METHOD__.'()', TRUE);
+		// TODO: deprecate this method. only used by SyncAjax
+SyncDebug::log(__METHOD__ . '()', TRUE);
 		$current_user_id = get_current_user_id();
 		// spoof the referer header
 		$args = array('headers' => 'Referer: ' . $this->host);
-SyncDebug::log(__METHOD__.'() target data=' . var_export($this->_target_data, TRUE));
+SyncDebug::log(__METHOD__ . '() target data=' . var_export($this->_target_data, TRUE));
 
 		$auth_args = $this->_target_data;
-		$request = $this->api('auth', $this->_target_data /*$auth_args */, $args);
-SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
+		$request = $this->api('auth', $this->_target_data /* $auth_args */, $args);
+SyncDebug::log(__METHOD__ . '() target data: ' . var_export($auth_args, TRUE));
 
 		if (!is_wp_error($request)) {
 			$reqdata = json_decode($request->__toString());
 			// TODO: check response- getting "trying to get property of non-object"
-			update_user_meta($current_user_id, 'spectrom_site_cookies', $reqdata->data->auth_cookie /*$request->data->auth_cookie*/);
-			update_user_meta($current_user_id, 'spectrom_site_nonce', $reqdata->data->access_nonce /*$request->data->access_nonce*/);
-			update_user_meta($current_user_id, 'spectrom_site_target_uid', $reqdata->data->user_id /*$request->data->user_id*/);
+			update_user_meta($current_user_id, 'spectrom_site_cookies', $reqdata->data->auth_cookie /* $request->data->auth_cookie */);
+			update_user_meta($current_user_id, 'spectrom_site_nonce', $reqdata->data->access_nonce /* $request->data->access_nonce */);
+			update_user_meta($current_user_id, 'spectrom_site_target_uid', $reqdata->data->user_id /* $request->data->user_id */);
 
 			return $request->data->auth_cookie;
 		}
@@ -465,7 +458,7 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 	 * @return SyncApiResponse result data
 	 */
 	// TODO: remove this method- all functionality needs to be in _push()
-	private /*public*/ function push($post_id)
+	private function push($post_id)
 	{
 		// TODO: refactor to call $this->api('push')
 		$model = new SyncModel();
@@ -490,7 +483,6 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 			$push_data['target_post_id'] = $sync_data->target_content_id;
 
 // TODO: move into build_sync_data() and add filtering
-
 		// serialize the data into a JSON string.
 //		$push_data = json_encode($push_data);
 		// use the wp_remote_post() API to perform a connection/authenticate operation on the Target site using the Target site’s configured credentials and send the JSON data.
@@ -500,7 +492,6 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 /////;here;
 		// the response from the Target site will indicate success or failure of the operation via an error code.
 		// this error code will be used to look up a translatable string to display a useful error message to the user.
-
 		// the success or error message will be returned as part of the response for the AJAX request and displayed just
 		// underneath the ( Sync ) button within the MetaBox.
 //		$response = new SyncApiResponse();
@@ -542,9 +533,8 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 	{
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data: ' . var_export($data, TRUE));
 		// TODO: indicate error if target system not set up
-
 		// if no Target credentials provided, get them from the config
-		if (!isset($data['username']) /*|| !isset($data['password'])*/ || !isset($data['host'])) {
+		if (!isset($data['username']) /* || !isset($data['password']) */ || !isset($data['host'])) {
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' using credentials from config');
 			$source_model = new SyncSourcesModel();
 			$opts = new SyncOptions();
@@ -663,6 +653,11 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 			return $res;
 		$data['media_data'] = $res;
 
+		// parse for Shortcodes
+		$res = $this->_parse_shortcodes($post_id, $post_data['post_data']['post_content'], $data);
+		if (is_wp_error($res))
+			return $res;
+
 		// parse for Gutenberg specific content and references
 		$res = $this->_parse_gutenberg($post_id, $post_data['post_data']['post_content'], $data);
 		if (is_wp_error($res))
@@ -692,11 +687,11 @@ SyncDebug::log(__METHOD__.'() target data: ' . var_export($auth_args, TRUE));
 	 */
 	private function _media($data, &$args)
 	{
-$debug_data = $data;
-if (strlen($debug_data['contents']) > 1024)
-	$debug_data['contents'] = '...removed...';
-SyncDebug::log(__METHOD__.'() called with ' . var_export($debug_data, TRUE));
-unset($debug_data);
+		$debug_data = $data;
+		if (strlen($debug_data['contents']) > 1024)
+			$debug_data['contents'] = '...removed...';
+SyncDebug::log(__METHOD__ . '() called with ' . var_export($debug_data, TRUE));
+		unset($debug_data);
 		// grab a few required items out of the data array
 		$boundary = $data['boundary'];
 		unset($data['boundary']);
@@ -704,18 +699,18 @@ unset($debug_data);
 		unset($data['img_name']);
 		$content = $data['contents'];
 		unset($data['contents']);
-/**
-array (
-  'username' =>
-  'password' =>
-  'host' =>
-  'auth' =>
-  array (
-    'cookie' =>
-    'nonce' =>
-    'site_key' =>
-  )
- */
+		/**
+		  array (
+		  'username' =>
+		  'password' =>
+		  'host' =>
+		  'auth' =>
+		  array (
+		  'cookie' =>
+		  'nonce' =>
+		  'site_key' =>
+		  )
+		 */
 		$headers = array(
 			'content-type' => 'multipart/form-data; boundary=' . $boundary
 		);
@@ -748,6 +743,17 @@ array (
 	}
 
 	/**
+	 * Public access method to allow Beaver Builder to parse media within Module meta data
+	 * @param int $post_id Post ID of content being parsed
+	 * @param string $content The content to partse
+	 * @return boolean TRUE on successful addition of media to response; otherwise FALSE
+	 */
+	public function parse_media($post_id, $content)
+	{
+		return $this->_parse_media($post_id, $content);
+	}
+
+	/**
 	 * Parses content, looking for image references that need to be synchronized
 	 * @param int $post_id The post id
 	 * @param string $content The post content to be parsed
@@ -758,16 +764,15 @@ array (
 	private function _parse_media($post_id, $content) // , $target, SyncApiResponse $response)
 	{
 		$post_id = abs($post_id);
-SyncDebug::log(__METHOD__.'() id #' . $post_id);
+SyncDebug::log(__METHOD__ . '() id #' . $post_id);
 		// TODO: we'll need to add the media sizes on the Source to the data being sent so the Target can generate image sizes
-
 		// if no content, there's nothing to do
 //		if (empty($content))
 //			return;
 
-		if (empty($content)) {		// need to continue even with empty content. otherwise featured image doesn't get processed
-			$xml = NULL;			// use this to denote empty content and skip looping through <img> and <a> tags #180
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' content is empty, not searching <img> and <a> tags');
+		if (empty($content)) {  // need to continue even with empty content. otherwise featured image doesn't get processed
+			$xml = NULL;   // use this to denote empty content and skip looping through <img> and <a> tags #180
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' content is empty, not searching <img> and <a> tags');
 		} else {
 			// sometimes the insert media into post doesn't add a space...this will hopefully fix that
 			$content = str_replace('alt="', ' alt="', $content);
@@ -775,7 +780,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' content is empty, not searching <
 			try {
 				// TODO: can we use get_media_embedded_in_content()?
 				libxml_clear_errors();
-				libxml_use_internal_errors(TRUE);			// disable the error messages generated from unrecognized DOM elements
+				libxml_use_internal_errors(TRUE);   // disable the error messages generated from unrecognized DOM elements
 				$xml = new DOMDocument();
 
 				// TODO: this is throwing errors on BB content:
@@ -784,15 +789,14 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' content is empty, not searching <
 				// PHP Warning:  DOMDocument::loadHTML(): Tag circle invalid in Entity, line: 11 in wpsitesynccontent/classes/apirequest.php on line 675
 				$xml->loadHTML($content);
 			} catch (Exception $ex) {
-				$xml = NULL;		// any errors in parsing; mark it as empty content so processing continues #180
+				$xml = NULL;  // any errors in parsing; mark it as empty content so processing continues #180
 			}
 		}
 
 		// set up some things before processing content
 		$post_thumbnail_id = abs(get_post_thumbnail_id($post_id));
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post thumb id=' . $post_thumbnail_id);
-		$this->_sent_images = array();			// list of images already sent. Used by _send_image() to not send the same image twice
-
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' post thumb id=' . $post_thumbnail_id);
+		$this->_sent_images = array();   // list of images already sent. Used by _send_image() to not send the same image twice
 		// set source domain; used to detect media elements to be added to push queue
 		$this->set_source_domain(site_url('url'));
 
@@ -806,22 +810,21 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post thumb id=' . $post_thumbnail
 			);
 			$post_children = get_children($args, OBJECT);
 //SyncDebug::log(__METHOD__.'() children=' . var_export($post_children, TRUE));
-
 			// only used in processing <img> tags. Don't need to do this if content is empty #180
 			$attach_model = new SyncAttachModel();
 		}
 
 		// search for <img> tags within content
-		if (NULL !== $xml) {						// don't look for <img> elements if content is empty #180
+		if (NULL !== $xml) {	  // don't look for <img> elements if content is empty #180
 			$tags = $xml->getElementsByTagName('img');
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . $tags->length . ' <img> tags');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found ' . $tags->length . ' <img> tags');
 
 			// loop through each <img> tag and send them to Target
 			for ($i = $tags->length - 1; $i >= 0; $i--) {
 				$media_node = $tags->item($i);
 				$src_attr = $media_node->getAttribute('src');
 				$class_attr = $media_node->getAttribute('class');
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' <img src="' . $src_attr . '" class="' . $class_attr . '" ...>');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' <img src="' . $src_attr . '" class="' . $class_attr . '" ...>');
 
 				$classes = explode(' ', $class_attr);
 				$img_id = 0;
@@ -840,7 +843,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' <img src="' . $src_attr . '" clas
 							if ($this->send_media($img_file, $post_id, $post_thumbnail_id, $img_id))
 								$src_attr = NULL;
 						} else {
-							$img_id = 0;			// if not valid, clear id to indicate use of fallback method below #162
+							$img_id = 0;   // if not valid, clear id to indicate use of fallback method below #162
 						}
 						break;
 					}
@@ -849,30 +852,42 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' <img src="' . $src_attr . '" clas
 				// if the class= attribute didn't work use the src= attribute
 				if (0 === $img_id && !empty($src_attr)) {
 					// look up attachment id by name
-					$attach_posts = $attach_model->search_by_guid($src_attr, TRUE);	// do deep search #162
-					foreach ($attach_posts as $attach_post) {
-						if ($attach_post->guid === $src_attr) {
-							$img_id = $attach_post->ID;
-							break;
+					$attach_posts = $attach_model->search_by_guid($src_attr, TRUE); // do deep search #162
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' attachments: ' . var_export($attach_posts, TRUE));
+					if (NULL !== $attach_posts) {
+						foreach ($attach_posts as $attach_post) {
+							if ($attach_post->guid === $src_attr) {
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' guid=' . $attach_post->guid);
+								$img_id = $attach_post->ID;
+								break;
+							}
 						}
+
+						// didn't find the original name, see if it's a known image size
+						if (0 === $img_id && 1 === count($attach_posts)) {
+							$src_attr = $attach_posts[0]->guid;
+							$img_id = abs($attach_posts[0]->ID);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' img_id=' . $img_id . ' src_attr=' . $src_attr);
+						}
+
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' calling send_media("' . $src_attr . '", ' . $post_id . ', ' . $post_thumbnail_id . ', ' . $img_id . ')');
+//						if ($this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
+//							return FALSE;
+						$this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id);
 					}
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' calling send_media("' . $src_attr . '", ' . $post_id . ', ' . $post_thumbnail_id . ', ' . $img_id . ')');
-//					if ($this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id))
-//						return FALSE;
-					$this->send_media($src_attr, $post_id, $post_thumbnail_id, $img_id);
 				}
 
 				if (0 === $img_id) {
 					// need other mechanism to match image reference to the attachment id
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' img id does not match attachment');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' img id does not match attachment');
 				}
 			}
 		}
 
 		// search through <a> tags within content
-		if (NULL !== $xml) {						// don't look for <img> elements if content is empty #180
+		if (NULL !== $xml) {	  // don't look for <img> elements if content is empty #180
 			$tags = $xml->getElementsByTagName('a');
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . $tags->length . ' <a> tags');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found ' . $tags->length . ' <a> tags');
 
 //SyncDebug::log(' - url = ' . $this->_source_domain);
 			// loop through each <a> tag and send them to Target
@@ -888,11 +903,11 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . $tags->length . ' <a> t
 					foreach ($post_children as $child_id => $child_post) {
 						if ($child_post->guid === $href_attr) {
 							$attach_id = $child_id;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - found pdf attachment id ' . $attach_id);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' - found pdf attachment id ' . $attach_id);
 							break;
 						}
 					}
-					if (0 !== $attach_id)			// https://wordpress.org/support/topic/bugs-68/
+					if (0 !== $attach_id)   // https://wordpress.org/support/topic/bugs-68/
 						$this->send_media($href_attr, $post_id, $post_thumbnail_id, $attach_id);
 				} else {
 //SyncDebug::log(' - no attachment to send');
@@ -902,17 +917,17 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - found pdf attachment id ' . $at
 
 		// handle the featured image
 		if (0 !== $post_thumbnail_id) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' featured image: ' . $post_thumbnail_id);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' featured image: ' . $post_thumbnail_id);
 			$img = wp_get_attachment_image_src($post_thumbnail_id, 'full');
-if (FALSE === $img) SyncDebug::log(__METHOD__.'():' . __LINE__ . ' wp_get_attachment_image_src() failed');
+if (FALSE === $img) SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' wp_get_attachment_image_src() failed');
 			// check image URL and see if it doesn't match Source domain. #131
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' source domain: ' . $this->_source_domain);
-			if (FALSE === stripos($img[0], $this->_source_domain)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image file not on Source domain');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' source domain: ' . $this->_source_domain);
+if (FALSE === stripos($img[0], $this->_source_domain)) {
+	SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' image file not on Source domain');
 				// image is not from Source domain- stored on CDN or S3? Get image source from GUID
 				$att_post = get_post($post_thumbnail_id);
 				if (NULL !== $att_post) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post guid: ' . $att_post->guid . ' type=' . $att_post->post_type);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' post guid: ' . $att_post->guid . ' type=' . $att_post->post_type);
 					$img[0] = $att_post->guid;
 				}
 			}
@@ -938,11 +953,11 @@ SyncDebug::log('  DOCROOT=' . $_SERVER['DOCUMENT_ROOT']);
 				foreach ($matches[0] as $url) {
 					if (FALSE !== ($pos = stripos($url, '"')))
 						$url = substr($url, 0, $pos);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' checking URL [' . $url . ']');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' checking URL [' . $url . ']');
 
 					$img_id = 0;
-					$attach_posts = $attach_model->search_by_guid($url, TRUE);	// do deep search #162
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . count($attach_posts) . ' results ' . var_export($attach_posts, TRUE));
+					$attach_posts = $attach_model->search_by_guid($url, TRUE); // do deep search #162
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found ' . count($attach_posts) . ' results ' . var_export($attach_posts, TRUE));
 					foreach ($attach_posts as $attach_post) {
 						if ($attach_post->guid === $url) {
 							$img_id = abs($attach_post->ID);
@@ -950,16 +965,27 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found ' . count($attach_posts) . 
 						}
 					}
 					if (0 !== $img_id) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found attachment id ' . $img_id);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found attachment id ' . $img_id);
 						// found an attachment ID that matches the URL- add to queue #210
 						$this->send_media($url, $post_id, $post_thumbnail_id, $img_id);
 					} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no attachment id found');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' no attachment id found');
 					}
-				}
-			}
-		}
+				} // foreach
+			} // 0 !== count
+		} // isset
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' done processing media');
+		return TRUE;
+	}
 
+	/**
+	 * Parses content for shortcodes that refer to IDs or other content that needs to be included in Push API request
+	 * @param int $post_id The post ID of the Content being sync'd.
+	 * @param string $content The content being sync'd.
+	 * @param array $data The data array being assembed for the API call
+	 */
+	private function _parse_shortcodes($post_id, $content, &$data)
+	{
 		return TRUE;
 	}
 
@@ -982,14 +1008,13 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no attachment id found');
 		// <!-- wp:media-text {"mediaId":{post_id},"mediaType":"video"} -->
 
 		$this->post_id = $post_id;
-		$post_thumbnail_id = abs(get_post_thumbnail_id($post_id));	// needed for send_media() calls
-		$attach_model = new SyncAttachModel();					// used for regex image search #211
-		$this->id_refs = array();								// init list of reference IDs
-		$this->gutenberg_queue = array();						// init work queueu
-		$this->gutenberg_processed = array();					// init processed queue
+		$post_thumbnail_id = abs(get_post_thumbnail_id($post_id)); // needed for send_media() calls
+		$attach_model = new SyncAttachModel();	 // used for regex image search #211
+		$this->id_refs = array();		// init list of reference IDs
+		$this->gutenberg_queue = array();	  // init work queueu
+		$this->gutenberg_processed = array();	 // init processed queue
 		$this->gutenberg_add_queue($post_id);
-		$error = FALSE;											// set initial error condition
-
+		$error = FALSE;		   // set initial error condition
 		// Process all items in queue. During processing Shared Blocks are added to queue
 		// so that image references within those Blocks can also be checked.
 		while (NULL !== ($work_post_id = array_shift($this->gutenberg_queue))) {
@@ -997,25 +1022,23 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no attachment id found');
 				$work_post = get_post($work_post_id);
 				$content = $work_post->post_content;
 			}
-			$len = strlen($content);								// length of content
-			$offset = 0;											// pointer into string for where search currently is
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' starting work on ID ' . $work_post_id . ' with ' . $len . ' bytes of content');
+			$len = strlen($content);		// length of content
+			$offset = 0;		   // pointer into string for where search currently is
+			SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' starting work on ID ' . $work_post_id . ' with ' . $len . ' bytes of content');
 			do {
 				$pos = strpos($content, '<!-- wp:', $offset);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' pos=' . $pos . ' [' . substr($content, $pos, 20) . ']');
 				if (FALSE !== $pos) {
 					// found a beginning marker: "<!-- wp:"
-					$ref_id = 0;									// initialize reference ID value
+					$ref_id = 0;		 // initialize reference ID value
 
-					$pos_space = strpos($content, ' ', $pos + 5);	// space after block name
+					$pos_space = strpos($content, ' ', $pos + 5); // space after block name
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' space=' . $pos_space . ' [' . substr($content, $pos_space - 3, 10) . ']');
 					$block_name = substr($content, $pos + 5, $pos_space - $pos - 5);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' block_name=[' . $block_name . ']');
-
 					// find start and end points of the json data within the block marker
 					$start = $pos_space + 1;
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ': start=' . $start . ' [' . substr($content, $start - 3, 10) . ']');
-
 					// look for json object after block name
 					if ('{' === substr($content, $start, 1)) {
 						// there is json data within the Block Marker - decode it
@@ -1024,66 +1047,64 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' starting work on ID ' . $work_pos
 						if (FALSE !== $end && '/' === substr($content, $end - 1, 1))
 							--$end;
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' end=' . $end . ' [' . substr($content, $end - 3, 10) . ']');
-						$json = NULL;								// initialize decoded json object
+						$json = NULL;		// initialize decoded json object
 						if (FALSE !== $end) {
 							$end -= 2;
 							$json = substr($content, $start, $end - $start + 1);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' json=[' . $json . ']');
-							if (empty($json))						// if json string is empty
-								$json = NULL;						// reset to NULL
+							if (empty($json))	  // if json string is empty
+								$json = NULL;	  // reset to NULL
 						} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' could not find end of block marker. off=' . $offset . ' data=' . substr($content, $start, 30));
+							SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' could not find end of block marker. off=' . $offset . ' data=' . substr($content, $start, 30));
 						}
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' json=[' . $json . ']');
-
 						// if there is json data, decode and process it
 						if (NULL !== $json) {
 							$obj = json_decode($json);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found json string: "' . $json . '"');
+							SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found json string: "' . $json . '"');
 
 							// TODO: need to add error checking when referenced IDs are missing, etc.
 							// TODO: how does Gutenberg deal with these ID references if they've been deleted after the ID is written to the Block Marker?
-
 							// handle each Block Marker individually
 							switch ($block_name) {
-							case 'wp:block':						// Shared Block reference - post reference
+							case 'wp:block':	  // Shared Block reference - post reference
 								$ref_id = abs($obj->ref);
-								$this->gutenberg_add_queue($ref_id);	// add Shared Block post ID to the work queue
+								$this->gutenberg_add_queue($ref_id); // add Shared Block post ID to the work queue
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found shared block reference: ' . $ref_id . ' at pos ' . ($pos + 21));
 								if (0 !== $ref_id && !isset($this->id_refs[$ref_id])) {
 									// ID has not already been processed (no duplicates)
 									$ref_post = get_post($ref_id, ARRAY_A);
 									$this->id_refs[$ref_id] = array($block_name, $ref_post);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found reference to post id ' . $ref_id . ' "' . $ref_post['post_title'] . '"');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found reference to post id ' . $ref_id . ' "' . $ref_post['post_title'] . '"');
 								}
 								// TODO: error recovery
 								break;
 
-							case 'wp:cover':						// Cover Block - image reference
+							case 'wp:cover':	  // Cover Block - image reference
 								if (FALSE === $this->gutenberg_attachment_block($obj->id, $work_post_id, $post_thumbnail_id, $block_name)) {
 									// TODO: handle error recovery
 								}
 								break;
 
-							case 'wp:audio':						// Audio Block- resource reference
-							case 'wp:video':						// Video Block- resource reference
-							case 'wp:image':						// Image Block- resource reference
+							case 'wp:audio':	  // Audio Block- resource reference
+							case 'wp:video':	  // Video Block- resource reference
+							case 'wp:image':	  // Image Block- resource reference
 								if (FALSE === $this->gutenberg_attachment_block($obj->id, $work_post_id, $post_thumbnail_id, $block_name)) {
 									// TODO: handle error recovery
 								}
 								break;
 
 							case 'wp:media-text':
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' mediaID=' . $obj->mediaId);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' mediaID=' . $obj->mediaId);
 								if (FALSE === $this->gutenberg_attachment_block($obj->mediaId, $work_post_id, $post_thumbnail_id, $block_name)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error handling attachment block id=' . $obj->mediaID);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' error handling attachment block id=' . $obj->mediaID);
 									// TODO: handle error recovery
 								}
 								break;
 
-							case 'wp:gallery':						// Gallery Block- multiple image references
+							case 'wp:gallery':	  // Gallery Block- multiple image references
 								$ref_ids = $obj->ids;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found reference ids=' . implode(', ', $ref_ids));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found reference ids=' . implode(', ', $ref_ids));
 								foreach ($ref_ids as $ref_id) {
 									if (FALSE === $this->gutenberg_attachment_block($ref_id, $work_post_id, $post_thumbnail_id, $block_name)) {
 										// TODO: handle error
@@ -1091,12 +1112,12 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found reference ids=' . implode('
 								}
 								break;
 
-							case 'wp:file':							// File Block- resource reference
+							case 'wp:file':	   // File Block- resource reference
 								$ref_id = abs($obj->id);
 								if ($this->gutenberg_attachment_block($ref_id, $work_post_id, $post_thumbnail_id, $block_name)) {
 									$ref_post = get_post($ref_id);
 									if (NULL !== $ref_post) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adding reference id ' . $ref_id . ' post ' . var_export($ref_post, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' adding reference id ' . $ref_id . ' post ' . var_export($ref_post, TRUE));
 										$this->id_refs[$ref_id] = array($block_name, $ref_post);
 									}
 								} else {
@@ -1110,11 +1131,11 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adding reference id ' . $ref_id .
 								break;
 							} // switch ($block_name)
 						} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' could not parse json object');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' could not parse json object');
 						} // NULL !== $json
-						$offset = $end + 3;				// move offset to the end of the Block Marker comment
+						$offset = $end + 3;	// move offset to the end of the Block Marker comment
 					} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no json object in block');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' no json object in block');
 						$end = $pos_space + 2;
 						$offset = $pos_space + 2;
 					} // '{' === substr($content, $start, 1) - there's json data in the Block Marker
@@ -1133,9 +1154,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' no json object in block');
 					foreach ($matches[0] as $url) {
 						if (FALSE !== ($pos_quote = stripos($url, '"')))
 							$url = substr($url, 0, $pos_quote);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found image reference: ' . $url);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found image reference: ' . $url);
 						$img_id = 0;
-						$attach_posts = $attach_model->search_by_guid($url, TRUE);	// do deep search #162
+						$attach_posts = $attach_model->search_by_guid($url, TRUE); // do deep search #162
 						foreach ($attach_posts as $attach_post) {
 							if ($attach_post->guid === $url) {
 								$img_id = abs($attach_post->ID);
@@ -1143,7 +1164,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found image reference: ' . $url);
 							}
 						}
 						if (0 !== $img_id) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found attachment id ' . $img_id);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' found attachment id ' . $img_id);
 							// found an attachment ID that matches the URL- add to queue
 							$this->send_media($url, $work_post_id, $post_thumbnail_id, $img_id);
 						}
@@ -1152,12 +1173,13 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found attachment id ' . $img_id);
 			}
 		} // while gutenberg_queue has posts
 
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' all images processed; id refs=' . count($this->id_refs) . ' sent images=' . count($this->_sent_images));
 		// there are IDs to update, use the 'push_complete' API to indicate completion and update IDs on Target
-		if (!$error && 0 !== count($this->id_refs)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adding "push_complete" callback');
+		if (!$error && (0 !== count($this->id_refs) || 0 !== count($this->_sent_images))) {
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' adding "push_complete" callback');
 			add_action('spectrom_sync_push_queue_complete', array($this, 'push_complete_api'), 10, 1);
 		}
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' done processing Gutenberg content');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' done processing Gutenberg content');
 	}
 
 	/**
@@ -1180,7 +1202,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' done processing Gutenberg content
 					// add to list of references to be fixed up via 'push_complete' API call
 					$this->id_refs[$ref_id] = array($block_name, $ref_post->guid); // include image url #212
 				} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ERROR adding media file "' . $ref_att . '" to queue');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' ERROR adding media file "' . $ref_att . '" to queue');
 					return FALSE;
 				}
 			} else {
@@ -1211,15 +1233,15 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ERROR adding media file "' . $ref
 	 */
 	public function push_complete_api($resp)
 	{
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending "push_complete" API call');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' sending "push_complete" API call');
 		// we've sent image/content references to the Target- need to send process compelte API call to Target
 		$api_data = array(
-			'post_id' => $this->post_id,					// the Source Post ID to be updated
-			'id_refs' => $this->id_refs,					// data and Source IDs to update
+			'post_id' => $this->post_id, // the Source Post ID to be updated
+			'id_refs' => $this->id_refs, // data and Source IDs to update
 		);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' data=' . var_export($api_data, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' data=' . var_export($api_data, TRUE));
 		$this->api('push_complete', $api_data);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' done with "push_complete" API call');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' done with "push_complete" API call');
 	}
 
 	/**
@@ -1247,48 +1269,47 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' done with "push_complete" API cal
 	 */
 	public function send_media($url, $post_id, $thumbnail_id, $attach_id)
 	{
-SyncDebug::log(__METHOD__."('{$url}', {$post_id}, {$thumbnail_id})");
+SyncDebug::log(__METHOD__ . "('{$url}', {$post_id}, {$thumbnail_id}, {$attach_id})");
 		if (in_array($url, $this->_sent_images)) {
-SyncDebug::log(__METHOD__.'() already sent this image');
+SyncDebug::log(__METHOD__ . '() already sent this image');
 			return TRUE;
 		}
 		$this->_sent_images[] = $url;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' added image #' . count($this->_sent_images) . ': ' . $url);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' added image #' . count($this->_sent_images) . ': ' . $url);
 
 		$src_parts = parse_url($url);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' url=' . $url . ' parts=' . var_export($src_parts, TRUE));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' url=' . $url . ' parts=' . var_export($src_parts, TRUE));
 //		$path = substr($src_parts['path'], 1); // remove first "/"
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' path=' . $path);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' siteurl=' . site_url());
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ABSPATH=' . ABSPATH);
 //		$path = str_replace(trailingslashit(site_url()), ABSPATH, $url);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' new path=' . $path);
-
 		// return data array
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sending image: ' . $url);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' sending image: ' . $url);
 		$path = $this->url_to_path($url);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' path: ' . $path);
-SyncDebug::log(__METHOD__.'() src_parts[host]=' . $src_parts['host'] . ' source_domain=' . $this->_source_domain);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' path: ' . $path);
+SyncDebug::log(__METHOD__ . '() src_parts[host]=' . $src_parts['host'] . ' source_domain=' . $this->_source_domain);
 //		if ($src_parts['host'] === $this->_source_domain &&
 //			is_wp_error($this->upload_media($post_id, $path, NULL, $thumbnail_id == $post_id, $attach_id))) {
 		if ($src_parts['host'] === $this->_source_domain) {
 			$res = $this->upload_media($post_id, $path, NULL, $thumbnail_id == $attach_id /* $post_id #217 */, $attach_id);
 			if (is_wp_error($res)) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error on upload_media() returning FALSE');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' error on upload_media() returning FALSE');
 				return FALSE;
 			} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' upload_media() successful');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' upload_media() successful');
 			}
 		} else if (FALSE !== stripos($src_parts['host'], 'amazonaws.com') || FALSE !== stripos($src_parts['host'], 'cloudfront.net')) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' hosted on CDN: ' . $src_parts['host']);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' hosted on CDN: ' . $src_parts['host']);
 			$att_post = get_post($attach_id);
 			if (NULL !== $att_post)
 				$url = $att_post->guid;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . " upload_media({$post_id}, '{$url}', NULL, _, {$attach_id})");
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . " upload_media({$post_id}, '{$url}', NULL, _, {$attach_id})");
 			if (is_wp_error($this->upload_media($post_id, $url, NULL, $thumbnail_id === $attach_id /* $post_id #217 */, $attach_id)))
 				return FALSE;
 		} else {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' *** no image file sent to target url=' . $url);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' *** no image file sent to target url=' . $url);
 		}
 
 		return TRUE;
@@ -1303,29 +1324,29 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' *** no image file sent to target 
 	 * @param int $attach_id The post ID of the attachment being uploaded
 	 */
 	public function upload_media($post_id, $file_path, $target, $featured = FALSE, $attach_id = 0)
-	// TODO: remove $target parameter
 	{
-SyncDebug::log(__METHOD__.'() post_id=' . $post_id . ' path=' . $file_path . ' featured=' . ($featured ? 'TRUE' : 'FALSE') . ' attach_id=' . $attach_id, TRUE);
+		// TODO: remove $target parameter
+SyncDebug::log(__METHOD__ . '() post_id=' . $post_id . ' path=' . $file_path . ' featured=' . ($featured ? 'TRUE' : 'FALSE') . ' attach_id=' . $attach_id, TRUE);
 
 		if (!file_exists($file_path) && FALSE !== strpos($file_path, '%')) {
 			// TODO: fix url encoding in file path bb#11
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' file exists=' . (file_exists($file_path) ? 'TRUE' : 'FALSE'));
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' file exists=' . (file_exists($file_path) ? 'TRUE' : 'FALSE'));
 		}
 
 		if (!file_exists($file_path)) {
 			// no image - no need to send update_media API request #167
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ERROR: file "' . $file_path . '" not found');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' ERROR: file "' . $file_path . '" not found');
 			return;
 		}
 		$attach_post = get_post($attach_id, OBJECT);
 		$attach_alt = get_post_meta($attach_id, '_wp_attachment_image_alt', TRUE);
 		$img_date = filemtime($file_path);
-		$post_fields = array (
+		$post_fields = array(
 //			'name' => 'value',
 			'post_id' => $post_id,
 			'attach_id' => $attach_id,
 			'featured' => abs($featured),
-			'boundary' => wp_generate_password(24),		// TODO: remove and generate when formatting POST content in _media()
+			'boundary' => wp_generate_password(24), // TODO: remove and generate when formatting POST content in _media()
 			'img_path' => dirname($file_path),
 			'img_name' => basename($file_path),
 			'img_year' => date('Y', $img_date),
@@ -1340,9 +1361,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ERROR: file "' . $file_path . '" 
 		);
 		// allow extensions to include data in upload_media operations
 		$post_fields = apply_filters('spectrom_sync_upload_media_fields', $post_fields);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image post ' . $post_fields['img_path'] . '/' . $post_fields['img_name']);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' image post ' . $post_fields['img_path'] . '/' . $post_fields['img_name']);
 //var_export($post_fields, TRUE));
-
 //$post_fields['content-len'] = strlen($post_fields['contents']);
 //$post_fields['content-type'] = gettype($post_fields['contents']);
 //$post_fields['img-name'] = $file_path;
@@ -1350,9 +1370,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image post ' . $post_fields['img_
 //$post_fields['img-exists'] = var_export($d, TRUE);
 //$post_fields['img-time'] = date('Y-m-d H:i:s', filemtime($file_path));
 //$post_fields['img-size'] = filesize($file_path);
-
 //SyncDebug::log(__METHOD__.'() post data=' . var_export($post_fields, TRUE));
-
 		// add file upload operation to the API queue
 		$this->_add_queue('upload_media', $post_fields);
 	}
@@ -1364,17 +1382,16 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' image post ' . $post_fields['img_
 	 */
 	private function _get_image_contents($file_path)
 	{
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' path=' . $file_path);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' path=' . $file_path);
 
 		// adjust file path if running within multisite #167
 		if (is_multisite()) {
 			$to_dir = '/wp-content/blogs.dir/' . get_current_blog_id() . '/';
 			$file_path = str_replace('/wp-content/files/', $to_dir, $file_path);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adjusted multisite file path to ' . $file_path);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' adjusted multisite file path to ' . $file_path);
 		}
 
 		// TODO: rework to use CURLFile class and @filename specifier (for PHP < 5.5) to save memory on large files #165
-
 		// first, try file_get_contents()
 		$contents = file_get_contents($file_path);
 
@@ -1391,7 +1408,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' adjusted multisite file path to '
 		}
 
 if (FALSE === $contents)
-	SyncDebug::log(__METHOD__.'():' . __LINE__ . ' ERROR: unable to obtain image contents');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' ERROR: unable to obtain image contents');
 
 		// TODO: try using filesystem
 
@@ -1405,18 +1422,28 @@ if (FALSE === $contents)
 	 */
 	public function url_to_path($url)
 	{
-		$domain = parse_url(site_url(), PHP_URL_HOST);				// local install's domain name
+//		$domain = parse_url(site_url(), PHP_URL_HOST);				// local install's domain name
 		$parts = parse_url($url);
+		$domain = $parts['host'];
+		$site_url = site_url();
+
+		// adjust path to account for subdirectory installs #223
+		if (0 !== ($pos = stripos($parts['path'], '/wp-content'))) {
+			$parts['path'] = substr($parts['path'], $pos);
+		}
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' domain=' . $domain . ' site=' . $site_url . ' parts=' . var_export($parts, TRUE));
 
 		// if it's a URL reference and on the same host, convert to filesystem path
 		if (('http' === $parts['scheme'] || 'https' === $parts['scheme']) &&
-			0 === strcasecmp($domain, $parts['host'])) {			// compare case insignificant #170
-			if (!function_exists('get_home_path')) {
-				require_once(ABSPATH . '/wp-admin/file.php');
-			}
-			$home = $this->get_home_path();							// get directory of WP install #187
+			0 === strcasecmp($domain, $parts['host'])) {   // compare case insignificant #170
+//			if (!function_exists('get_home_path')) {
+//				require_once(ABSPATH . '/wp-admin/file.php');
+//			}
+			$home = $this->get_home_path();	// get directory of WP install #187
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' home=' . $home);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' path=' . $parts['path']);
 			$path = $home . ltrim($parts['path'], '\\/');
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' converting "' . $url . '" to "' . $path . '"');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' converting "' . $url . '" to "' . $path . '"');
 		} else {
 			$path = $url;
 		}
@@ -1431,22 +1458,27 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' converting "' . $url . '" to "' .
 	public function get_home_path()
 	{
 		$home = get_option('home');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' home=' . $home);
 		if (FALSE !== ($pos = strpos($home, '://')))
 			$home = substr($home, $pos + 3);
 		$siteurl = get_option('siteurl');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' site=' . $siteurl);
 		if (FALSE !== ($pos = strpos($siteurl, '://')))
 			$siteurl = substr($siteurl, $pos + 3);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' home=[' . $home . '] site=[' . $siteurl . ']');
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' home=[' . $home . '] site=[' . $siteurl . ']');
 		if (!empty($home) && 0 !== strcasecmp($home, $siteurl)) {
 			// TODO: check adjustments if WP_CONTENT_DIR is set
 			$wp_path_rel_to_home = str_ireplace($home, '', $siteurl); /* $siteurl - $home */
 			$pos = strripos(str_replace('\\', '/', $_SERVER['SCRIPT_FILENAME']), trailingslashit($wp_path_rel_to_home));
 			$home_path = substr($_SERVER['SCRIPT_FILENAME'], 0, $pos);
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' home path=' . $home_path);
 			$home_path = trailingslashit($home_path);
 		} else {
 			$home_path = ABSPATH;
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' home=ABSPATH');
 		}
 
+SyncDebug::log(__METHOD__ . '():' . __LINE__ . ' returning "' . $home_path . '"');
 		return str_replace('\\', '/', $home_path);
 	}
 
@@ -1458,39 +1490,40 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' home=[' . $home . '] site=[' . $s
 	// TODO: move to SyncApiResponse
 	public static function error_code_to_string($code, $data = NULL)
 	{
+//SyncDebug::log(__METHOD__."({$code}, '" . var_export($data, TRUE) . "')", TRUE);
 		$error = '';
 		switch ($code) {
-		case self::ERROR_CANNOT_CONNECT:		$error = __('Unable to connect to Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_UNRECOGNIZED_REQUEST:	$error = __('The requested action is not recognized. Is plugin activated on Target?', 'wpsitesynccontent'); break;
-		case self::ERROR_NOT_INSTALLED:			$error = __('WPSiteSync for Content is not installed and activated on Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_BAD_CREDENTIALS:		$error = __('Unable to authenticate on Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_SESSION_EXPIRED:		$error = __('User session has expired.', 'wpsitesynccontent'); break;
-		case self::ERROR_CONTENT_EDITING:		$error = __('A user is currently editing this Content on the Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_CONTENT_LOCKED:		$error = sprintf(__('The User "%1$s", is currently editing this Content on the Target site.', 'wpsitesynccontent'), $data); break;
-		case self::ERROR_POST_DATA_INCOMPLETE:	$error = __('Some or all of the data for the request is missing.', 'wpsitesynccontent'); break;
-		case self::ERROR_USER_NOT_FOUND:		$error = __('The username does not exist on the Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_FILE_UPLOAD:			$error = __('Error while handling file upload.', 'wpsitesynccontent'); break;
-		case self::ERROR_PERMALINK_MISMATCH:	$error = __('The Permalink settings are different on the Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_WP_VERSION_MISMATCH:	$error = __('The WordPress versions are different on the Source and Target sites.', 'wpsitesynccontent'); break;
-		case self::ERROR_SYNC_VERSION_MISMATCH:	$error = __('The SYNC versions are different on the Source and Target sites.', 'wpsitesynccontent'); break;
-		case self::ERROR_EXTENSION_MISSING:		$error = __('The required SYNC extension is not active on the Target site.', 'wpsitesynccontent'); break;
-		case self::ERROR_INVALID_POST_TYPE:		$error = __('The post type is not allowed.', 'wpsitesynccontent'); break;
-		case self::ERROR_REMOTE_REQUEST_FAILED:	$error = __('Unable to make API request to Target system.', 'wpsitesynccontent'); break;
-		case self::ERROR_BAD_POST_RESPONSE:		$error = __('Target system did not respond with success code.', 'wpsitesynccontent'); break;
-		case self::ERROR_MISSING_SITE_KEY:		$error = __('Site Key for Target system has not been obtained.', 'wpsitesynccontent'); break;
-		case self::ERROR_POST_CONTENT_NOT_FOUND:$error = __('Unable to determine post content.', 'wpsitesynccontent'); break;
-		case self::ERROR_BAD_NONCE:				$error = __('Unable to validate AJAX request.', 'wpsitesynccontent'); break;
-		case self::ERROR_UNRESOLVED_PARENT:		$error = __('Content has a Parent Page that has not been Sync\'d.', 'wpsitesynccontent'); break;
-		case self::ERROR_NO_AUTH_TOKEN:			$error = __('Unable to authenticate with Target site. Please re-enter credentials for this site.', 'wpsitesynccontent'); break;
-		case self::ERROR_NO_PERMISSION:			$error = __('User does not have permission to perform Sync. Check configured user on Target.', 'wpsitesynccontent'); break;
-		case self::ERROR_INVALID_IMG_TYPE:		$error = __('The image uploaded is not a valid image type.', 'wpsitesynccontent'); break;
-		case self::ERROR_POST_NOT_FOUND:		$error = __('Requested post cannot be found on Target.', 'wpsitesynccontent'); break;
-		case self::ERROR_CONTENT_UPDATE_FAILED:	$error = __('Content update on Target failed.', 'wpsitesynccontent'); break;
-		case self::ERROR_CANNOT_WRITE_TOKEN:	$error = __('Cannot write authentication token.', 'wpsitesynccontent'); break;
-		case self::ERROR_UPLOAD_NO_CONTENT:		$error = __('Attachment upload failed. No content found; is there a broken link?', 'wpsitesynccontent'); break;
-		case self::ERROR_PHP_ERROR_ON_TARGET:	$error = __('A PHP error occurred on Target while processing your request. Examine log files for more information.', 'wpsitesynccontent'); break;
-		case self::ERROR_SSL_PROTOCOL_ERROR:	$error = __('Unknown SSL protocol error on Target. Check DNS settings on Target domain.', 'wpsitesynccontent'); break;
-		case self::ERROR_WORDFENCE_BLOCKED:		$error = __('Wordfence has blocked the Push operation. Try Learning Mode.', 'wpsitesyncontent'); break;
+		case self::ERROR_CANNOT_CONNECT:			$error = __('Unable to connect to Target site.', 'wpsitesynccontent'); break;
+		case self::ERROR_UNRECOGNIZED_REQUEST:		$error = __('The requested action is not recognized. Is plugin activated on Target?', 'wpsitesynccontent'); break;
+		case self::ERROR_NOT_INSTALLED:				$error = __('WPSiteSync for Content is not installed and activated on Target site.', 'wpsitesynccontent'); break;
+		case self::ERROR_BAD_CREDENTIALS:			$error = __('Unable to authenticate on Target site.', 'wpsitesynccontent'); break;
+		case self::ERROR_SESSION_EXPIRED:			$error = __('User session has expired.', 'wpsitesynccontent'); break;
+		case self::ERROR_CONTENT_EDITING:			$error = __('A user is currently editing this Content on the Target site.', 'wpsitesynccontent'); break;
+		case self::ERROR_CONTENT_LOCKED:			$error = sprintf(__('The User "%1$s", is currently editing this Content on the Target site.', 'wpsitesynccontent'), $data); break;
+		case self::ERROR_POST_DATA_INCOMPLETE:		$error = __('Some or all of the data for the request is missing.', 'wpsitesynccontent'); break;
+		case self::ERROR_USER_NOT_FOUND:			$error = __('The username does not exist on the Target site.', 'wpsitesynccontent'); break;
+		case self::ERROR_FILE_UPLOAD:				$error = __('Error while handling file upload.', 'wpsitesynccontent'); break;
+		case self::ERROR_PERMALINK_MISMATCH:		$error = __('The Permalink settings are different on the Target site.', 'wpsitesynccontent'); break;
+		case self::ERROR_WP_VERSION_MISMATCH:		$error = __('The WordPress versions are different on the Source and Target sites.', 'wpsitesynccontent'); break;
+		case self::ERROR_SYNC_VERSION_MISMATCH:		$error = __('The SYNC versions are different on the Source and Target sites.', 'wpsitesynccontent'); break;
+		case self::ERROR_EXTENSION_MISSING:			$error = __('The required SYNC extension is not active on the Target site.', 'wpsitesynccontent'); break;
+		case self::ERROR_INVALID_POST_TYPE:			$error = __('The post type is not allowed.', 'wpsitesynccontent'); break;
+		case self::ERROR_REMOTE_REQUEST_FAILED:		$error = __('Unable to make API request to Target system.', 'wpsitesynccontent'); break;
+		case self::ERROR_BAD_POST_RESPONSE:			$error = __('Target system did not respond with success code.', 'wpsitesynccontent'); break;
+		case self::ERROR_MISSING_SITE_KEY:			$error = __('Site Key for Target system has not been obtained.', 'wpsitesynccontent'); break;
+		case self::ERROR_POST_CONTENT_NOT_FOUND:	$error = __('Unable to determine post content.', 'wpsitesynccontent'); break;
+		case self::ERROR_BAD_NONCE:					$error = __('Unable to validate AJAX request.', 'wpsitesynccontent'); break;
+		case self::ERROR_UNRESOLVED_PARENT:			$error = __('Content has a Parent Page that has not been Sync\'d.', 'wpsitesynccontent'); break;
+		case self::ERROR_NO_AUTH_TOKEN:				$error = __('Unable to authenticate with Target site. Please re-enter credentials for this site.', 'wpsitesynccontent'); break;
+		case self::ERROR_NO_PERMISSION:				$error = __('User does not have permission to perform Sync. Check configured user on Target.', 'wpsitesynccontent'); break;
+		case self::ERROR_INVALID_IMG_TYPE:			$error = __('The image uploaded is not a valid image type.', 'wpsitesynccontent'); break;
+		case self::ERROR_POST_NOT_FOUND:			$error = __('Requested post cannot be found on Target.', 'wpsitesynccontent'); break;
+		case self::ERROR_CONTENT_UPDATE_FAILED:		$error = __('Content update on Target failed.', 'wpsitesynccontent'); break;
+		case self::ERROR_CANNOT_WRITE_TOKEN:		$error = __('Cannot write authentication token.', 'wpsitesynccontent'); break;
+		case self::ERROR_UPLOAD_NO_CONTENT:			$error = __('Attachment upload failed. No content found; is there a broken link?', 'wpsitesynccontent'); break;
+		case self::ERROR_PHP_ERROR_ON_TARGET:		$error = __('A PHP error occurred on Target while processing your request. Examine log files for more information.', 'wpsitesynccontent'); break;
+		case self::ERROR_SSL_PROTOCOL_ERROR:		$error = __('Unknown SSL protocol error on Target. Check DNS settings on Target domain.', 'wpsitesynccontent'); break;
+		case self::ERROR_WORDFENCE_BLOCKED:			$error = __('Wordfence has blocked the Push operation. Try Learning Mode.', 'wpsitesyncontent'); break;
 
 		default:
 			$error = apply_filters('spectrom_sync_error_code_to_text', sprintf(__('Unrecognized error: %d', 'wpsitesynccontent'), $code), $code, $data);
@@ -1509,9 +1542,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' home=[' . $home . '] site=[' . $s
 	{
 		$notice = '';
 		switch ($code) {
-		case self::NOTICE_FILE_EXISTS:			$notice = __('The file name already exists.', 'wpsitesynccontent'); break;
-		case self::NOTICE_CONTENT_SYNCD:		$notice = __('Content Synchronized.', 'wpsitesynccontent'); break;
-		case self::NOTICE_INTERNAL_ERROR:		$notice = __('Internal error:', 'wpsitesynccontent'); break;
+		case self::NOTICE_FILE_EXISTS:		$notice = __('The file name already exists.', 'wpsitesynccontent'); break;
+		case self::NOTICE_CONTENT_SYNCD:	$notice = __('Content Synchronized.', 'wpsitesynccontent'); break;
+		case self::NOTICE_INTERNAL_ERROR:	$notice = __('Internal error:', 'wpsitesynccontent'); break;
 		default:
 			$notice = apply_filters('spectrom_sync_notice_code_to_text',
 				sprintf(__('Unknown action; code: %d', 'wpsitesynccontent'), $code), $code);
@@ -1546,6 +1579,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' home=[' . $home . '] site=[' . $s
 	{
 		return $this->_response;
 	}
+
 }
 
 // EOF

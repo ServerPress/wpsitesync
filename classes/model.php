@@ -108,12 +108,17 @@ SyncDebug::log(__METHOD__.'() sql=' . $sql);
 	 * Gets sync data based on site_key and the post ID from the Source site
 	 * @param int $source_id The post ID coming from the Source site
 	 * @param string $site_key The site_key associated with the sync operation
-	 * @param string $type The content type being searched, defaults to 'post'. This is not a 'post_type' but which database the Content identified by $source_id is found in.
+	 * @param string $type The content type being searched, defaults to 'post'. This is not a 'post_type' but
+	 *  which database the Content identified by $source_id is found in. One of 'post', 'term' or 'user'.
 	 * @param boolean $assoc TRUE to associate Target ID to the wp_post table; otherwise FALSE
 	 * @return mixed Returns NULL if no result is found, else an object
 	 */
 	public function get_sync_data($source_id, $site_key = NULL, $type = 'post', $assoc = FALSE)
 	{
+		if (defined('WP_DEBUG') && WP_DEBUG) {
+			if (!in_array($type, array('comment', 'post', 'term', 'user')))
+				throw new Exception('The $type passed to get_sync_data() is invalid');
+		}
 		global $wpdb;
 
 		if (NULL === $site_key)
@@ -142,14 +147,21 @@ SyncDebug::log(__METHOD__.'() sql: ' . $sql);
 	/**
 	 * Gets sync data based on site_key and the post ID from the Target site
 	 * @param int $target_id The post ID coming from the Target
-	 * @param int $target_site_key The site_key associated with the sync operation
+	 * @param string $target_site_key The site_key associated with the sync operation
 	 * @param string $type The content type being searched, defaults to 'post'
 	 * @return mixed Returns NULL if no result is found, else an object matching the Target post ID and Site Key
 	 */
 	public function get_sync_target_data($target_id, $target_site_key = NULL, $type = 'post')
 	{
-		if (NULL === $site_key)
-			$site_key = SyncOptions::get('site_key');
+		if (defined('WP_DEBUG') && WP_DEBUG) {
+			if (!in_array($type, array('comment', 'post', 'term', 'user')))
+				throw new Exception('The $type passed to get_sync_data() is invalid');
+		}
+
+		if (NULL === $target_site_key) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' replacing site key');
+			$target_site_key = SyncOptions::get('site_key');
+		}
 
 		$where = '';
 		if (NULL !== $type) {
@@ -162,9 +174,10 @@ SyncDebug::log(__METHOD__.'() sql: ' . $sql);
 					FROM `{$this->_sync_table}`
 					WHERE `target_content_id`=%d AND `target_site_key`=%s {$where}
 					LIMIT 1";
-$sql = $wpdb->prepare($query, $target_id, $target_site_key);
-SyncDebug::log(__METHOD__.'() sql: ' . $sql);
-		return $wpdb->get_row($sql);
+		$sql = $wpdb->prepare($query, $target_id, $target_site_key);
+		$res = $wpdb->get_row($sql);
+SyncDebug::log(__METHOD__.'() sql: ' . $sql . ' res=' . var_export($res, TRUE));
+		return $res;
 	}
 
 	/**
@@ -176,6 +189,11 @@ SyncDebug::log(__METHOD__.'() sql: ' . $sql);
 	 */
 	public function get_sync_target_post($source_post_id, $target_site_key, $type = 'post')
 	{
+		if (defined('WP_DEBUG') && WP_DEBUG) {
+			if (!in_array($type, array('comment', 'post', 'term', 'user')))
+				throw new Exception('The $type passed to get_sync_data() is invalid');
+		}
+
 		$where = '';
 		if (NULL !== $type) {
 			$type = sanitize_key($type);
@@ -189,6 +207,31 @@ SyncDebug::log(__METHOD__.'() sql: ' . $sql);
 		$sql = $wpdb->prepare($query, $source_post_id, $target_site_key);
 		$ret = $wpdb->get_row($sql);
 SyncDebug::log(__METHOD__.'() sql=' . $sql . ' returned ' . var_export($ret, TRUE));
+		return $ret;
+	}
+
+	/**
+	 * Find a Source site entry given the Target's Post ID and the Source's Site Key
+	 * @param int $target_post_id The post ID of the Target's entry
+	 * @param string $source_site_key The Site Key for the Source site
+	 * @param string $type The entry type to look up; defaults to 'post' for wp_post entries
+	 * @return object representing the found Sync data record or NULL if not found
+	 */
+	public function get_source_from_target($target_post_id, $source_site_key, $type = 'post')
+	{
+		$where = '';
+		if (NULL !== $type) {
+			$type = sanitize_key($type);
+			$where = " AND `content_type`='{$type}' ";
+		}
+		global $wpdb;
+		$query = "SELECT *
+					FROM `{$this->_sync_table}`
+					WHERE `target_content_id`=%d AND `site_key`=%s {$where}
+					LIMIT 1 ";
+		$sql = $wpdb->prepare($query, $target_post_id, $source_site_key);
+		$ret = $wpdb->get_row($sql);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sql=' . $sql . ' returned ' . var_export($ret, TRUE));
 		return $ret;
 	}
 
@@ -402,6 +445,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post id #' . $post_id . ' post_ty
 	 * @param int $post_id The post ID to be checked
 	 * @return boolean TRUE if currently being edited; otherwise FALSE
 	 */
+	// TODO: deprecated: use SyncPostModel->is_post_locked()
 	public function is_post_locked($post_id)
 	{
 		if (!function_exists('wp_check_post_lock'))

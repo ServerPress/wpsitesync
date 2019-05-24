@@ -121,6 +121,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' target post id=' . $target_post_i
 	 */
 	public function is_post_locked($post_id)
 	{
+		if (0 === $post_id)
+			return FALSE;
+
 		if (!function_exists('wp_check_post_lock'))
 			require_once(ABSPATH . 'wp-admin/includes/post.php');
 

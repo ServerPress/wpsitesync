@@ -4,7 +4,7 @@ Donate link: http://wpsitesync.com
 Tags: attachments, content, content sync, data migration, desktopserver, export, import, migrate content, moving data, staging, synchronization, taxonomies
 Requires at least: 3.5
 Requires PHP: 5.3.1
-Tested up to: 5.0.3
+Tested up to: 5.2
 Stable tag: trunk
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -112,6 +112,18 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.5.2 - May 23, 2019 =
+* fix: correctly re-display the WPSiteSync metabox when hiding then showing the Gutenberg Components menu. (Thanks John H.)
+* fix: display the WPSiteSync metabox after click on "Publish" button in Gutenberg editor.
+* fix: no longer displaying "Invalid URL" message when saving settings that do not include Target site URL. (Thanks John H.)
+* fix: improve image file location code when WP is installed in a subdirectory (Thanks Alpesh J.)
+* fix: resolved issue with Yoast SEO Premium not saving meta description (Thanks Sukham S.)
+* fix: resolved issue with occasionally losing configuration settings in MultiSite environments (Thanks Tae K.)
+* fix: add check for count of images sent when processing Gutenberg block references
+* enhancement: add callback used in Javascript API that can be used to work with multi-sync option in Bulk Actions add-on. (Thanks Alex V.)
+* enhancement: added method to Sync Model to look up a Source site's entry given Target post ID
+* enhancement: add more capability checks to all admin operations
+
 = 1.5.1 - Feb 25, 2019 =
 * fix: resolved issue when Pushing posts where Featured Images were not set
 * fix: improved database alter process when plugin is updated

@@ -68,6 +68,7 @@ SyncDebug::log(__METHOD__.'()');
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' previously activated sites: ' . implode(',', $activated));
 
 		$blogs = $this->_get_all_blogs();
+		// TODO: use array_diff() to see if the loop is necessary
 		foreach ($blogs as $blog_id) {
 			$blog_id = abs($blog_id);
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' blog=' . $blog_id);
@@ -81,7 +82,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' previously activated sites: ' . i
 //else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' site ' . $blog_id . ' already activated');
 		}
 
-		switch_to_blog($current_blog);							// switch back to original blog
+		restore_current_blog();									// switch back to original blog #224
  
 		// save activated list for later checks
 		update_site_option(self::OPTION_ACTIVATED_LIST, $activated);
@@ -199,20 +200,31 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVAT
 	 */
 	protected function create_options()
 	{
-		$sync = WPSiteSyncContent::get_instance();
-		$model = new SyncModel();
+//		$sync = WPSiteSyncContent::get_instance();
+//		$model = new SyncModel();
 		// TODO: use SyncOptions class
-		$opts = get_option(SyncOptions::OPTION_NAME);
-		$this->default_config['site_key'] = $model->generate_site_key();
-		$date = $this->get_install_date();
-		$this->default_config['installed'] = $date;
+//		$opts = get_option(SyncOptions::OPTION_NAME);
+//		$this->default_config['site_key'] = $model->generate_site_key();
+//		$date = $this->get_install_date();
+//		$this->default_config['installed'] = $date;
 
-		if (FALSE !== $opts) {
-			$this->default_config = array_merge($opts, $this->default_config);
-			update_option(SyncOptions::OPTION_NAME, $this->default_config, FALSE, TRUE);
-		} else {
-			add_option(SyncOptions::OPTION_NAME, $this->default_config, FALSE, TRUE);
+//		if (FALSE !== $opts) {
+//			$this->default_config = array_merge($opts, $this->default_config);
+//			update_option(SyncOptions::OPTION_NAME, $this->default_config, FALSE, TRUE);
+//		} else {
+//			add_option(SyncOptions::OPTION_NAME, $this->default_config, FALSE, TRUE);
+//		}
+
+		$site_key = SyncOptions::get('site_key');
+		if (empty($site_key)) {
+			$model = new SyncModel();
+			SyncOptions::set('site_key', $model->generate_site_key());
 		}
+		$date = SyncOptions::get('installed');
+		if (empty($date)) {
+			SyncOptions('installed', $this->get_install_date());
+		}
+		SyncOptions::save_options();
 	}
 
 	/**

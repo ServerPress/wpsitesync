@@ -26,7 +26,7 @@ SyncDebug::log(' - res=' . var_export($res, TRUE));
 		if (0 === count($res) && $extended_search) {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' performing extended search for ' . $guid);
 			$this->get_image_sizes();
-SyncDebug::log(' - image sizes: ' . var_export($this->_sizes, TRUE));
+
 			foreach ($this->_sizes as $img_size) {
 				$dims = '-' . $img_size . '.';
 				// check if there's a known image size suffix in the file name
@@ -35,7 +35,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found image match for size ' . $i
 					$img_url = str_replace($dims, '.', $guid);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' searching for ' . $img_url);
 					$res = $this->search_by_guid($img_url, FALSE);
-					if (0 !== count($res)) {
+					if (is_array($res) && 0 !== count($res)) {
 						$res[0]->orig_guid = $guid;
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found a matching image: ' . $img_url);
 						return $res;			// set this for the loop below
@@ -51,7 +51,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' found a matching image: ' . $img_
 					$img_url = substr($guid, 0, $pos) . substr($guid, $ext);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' img=' . $img_url);
 					$res = $this->search_by_guid($img_url, FALSE);
-					if (0 !== count($res))
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' res=' . var_export($res, TRUE));
+					if (is_array($res) && 0 !== count($res))
 						$res[0]->orig_guid = $guid;
 				}
 			}
@@ -112,6 +113,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' unrecognized image size: ' . var_
 				$size = $img_size['width'] . 'x' . $img_size['height'];
 				$this->_sizes[] = $size;
 			}
+SyncDebug::log(' - image sizes: ' . var_export($this->_sizes, TRUE));
 		}
 
 		return $this->_sizes;

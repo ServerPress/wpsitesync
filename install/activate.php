@@ -92,8 +92,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' previously activated sites: ' . i
 //else SyncDebug::log(__METHOD__.'():' . __LINE__ . ' site ' . $blog_id . ' already activated');
 		}
 
-		restore_current_blog();									// switch back to original blog #224
- 
+		// restore_current_blog();								// switch back to original blog #224
+ 		switch_to_blog( $current_blog );
+		
 		// save activated list for later checks
 		update_site_option(self::OPTION_ACTIVATED_LIST, $activated);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' updated "' . self::OPTION_ACTIVATED_LIST . '" with ' . implode(',', $activated));

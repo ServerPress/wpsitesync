@@ -53,6 +53,9 @@ class SyncSettings extends SyncInput
 	 */
 	public function add_configuration_page()
 	{
+		if (!SyncOptions::has_cap())
+			return;
+
 //SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
 		$slug = add_submenu_page(
 			'options-general.php',
@@ -110,6 +113,8 @@ class SyncSettings extends SyncInput
 		$tabs = apply_filters('spectrom_sync_settings_tabs', $tabs);
 
 		echo '<div class="wrap spectrom-sync-settings">';
+		echo '<p class="cta-message">', SyncAdminDashboard::get_random_message(FALSE), '</p>';
+
 		echo '<h1 class="nav-tab-wrapper">';
 		echo '<img src="', esc_url(plugin_dir_url(dirname(__FILE__)) . 'assets/imgs/wpsitesync-logo-blue.png') . '" class="sync-settings-logo" width="97" height="35" />';
 		foreach ($tabs as $tab_name => $tab_info) {
@@ -243,7 +248,7 @@ class SyncSettings extends SyncInput
 			array(											// args
 				'name' => 'host',
 				'value' => $data['host'],
-				'placeholder' => empty($data['host']) ? 'http://' : '',
+				'placeholder' => empty($data['host']) ? 'https://' : '',
 				'size' => '50',
 				'description' => __('https://example.com - This is the URL that your Content will be Pushed to. If WordPress is installed in a subdirectory, include the subdirectory.', 'wpsitesynccontent'),
 			)
@@ -494,7 +499,9 @@ class SyncSettings extends SyncInput
 		$roles = array_reverse(get_editable_roles());
 		$allowed_roles = $args['value'];
 		foreach ($roles as $role => $caps) {
-			if (isset($caps['capabilities']['edit_posts']) && $caps['capabilities']['edit_posts']) {
+			// check for both 'edit_posts' OR 'edit_pages' #245
+			if ((isset($caps['capabilities']['edit_posts']) && $caps['capabilities']['edit_posts']) ||
+				(isset($caps['capabilities']['edit_pages']) && $caps['capabilities']['edit_pages'])) {
 				$checked = (FALSE === strpos($allowed_roles, SyncOptions::ROLE_DELIMITER . $role . SyncOptions::ROLE_DELIMITER)) ? '' : ' checked="checked" ';
 				$disabled = '';
 				if ('administrator' === $role) {
@@ -604,13 +611,12 @@ class SyncSettings extends SyncInput
 	public function validate_settings($values)
 	{
 //SyncDebug::log(__METHOD__.'() tab=' . $this->_tab);
-//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' values=' . var_export($values, TRUE));
-		if (!current_user_can('manage_options') || !SyncOptions::has_cap())
-			return array();
-
 //SyncDebug::log(__METHOD__.'() values=' . var_export($values, TRUE));
 		$settings = SyncOptions::get_all(); // $this->_options;
 //SyncDebug::log(__METHOD__.'() settings: ' . var_export($settings, TRUE));
+
+		if (!current_user_can('manage_options') || !SyncOptions::has_cap())
+			return $settings;
 
 		// start with a copy of the current settings so that 'site_key' and other hidden values are preserved on update
 		$out = array_merge($settings, array());
@@ -621,6 +627,19 @@ class SyncSettings extends SyncInput
 		// if no setting found for roles; default to admins only #169
 		if (!isset($values['roles']))
 			$values['roles'] = array('administrator' => 'on');
+
+		// check for removing host value #132
+		if (empty($values['host']) && !empty($settings['host'])) {
+			$sources_model = new SyncSourcesModel();
+			$sources_model->remove_token($settings['host']);		// remove existing entry from the spectrom_sync_source table
+
+			// clear any values in the array to be processed, as well as settings data
+			$out['host'] = $out['username'] = $out['password'] = '';
+			$out['auth'] = 0;										// signal that we're no longer authenticated
+			$settings['host'] = $settings['username'] = $settings['password'] = '';
+			$values['username'] = $values['password'] = '';
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' clearing host, username, password values=' . var_export($values, TRUE));
+		}
 
 		foreach ($values as $key => $value) {
 //SyncDebug::log(" key={$key}  value=[" . var_export($value, TRUE) . ']');
@@ -649,7 +668,10 @@ class SyncSettings extends SyncInput
 				} else if ('username' === $key) {
 					// TODO: refactor so that 'host' and 'username' password checking is combined
 					// check to see if 'username' is changing and force use of password
-					if ($value !== $settings['username'] && empty($values['password'])) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' change username: user="' . $value . '" pass="' . $values['password'] . '"');
+					if ('' === $value && '' === $values['password'] /* empty($value) && empty($values['password']) */ ) {
+						// do nothing
+					} else if ($value !== $settings['username'] && empty($values['password'])) {
 						add_settings_error('sync_username_password', 'missing-password', __('When changing Username, a password is required.', 'wpsitesynccontent'));
 						$out[$key] = $settings[$key];
 					} else {
@@ -795,14 +817,13 @@ class SyncSettings extends SyncInput
 			'title'	    => __('General', 'wpsitesynccontent'),
 			'content'	=>
 				'<p>' . __('This page allows you to configure how WPSiteSync for Content behaves.', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<strong>Host Name of Target</strong>: Enter the URL of the Target website you wish to Sync with.', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<strong>Username on Target</strong>: Enter the Administrator username for the Target website.', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<strong>Password on Target</strong>: Enter the Administrator password for the Target website.', 'wpsitesynccontent') . '</p>' .
+				'<p>' . __('<strong>Host Name of Target</strong>: Enter the URL of the Target website you wish to Sync with. This is the URL of your Home Page. Examples would be https://www.mydomain.com or http://domain.com.', 'wpsitesynccontent') . '</p>' .
+				'<p>' . __('<strong>Username on Target</strong>: Enter the username of an account on the Target website. This username must be able to create content. A role of "Administrator" or "Editor" is required.', 'wpsitesynccontent') . '</p>' .
+				'<p>' . __('<strong>Password on Target</strong>: Enter the password associated with the username of the Target website.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Strict Mode</strong>: Select if WordPress and WPSiteSync for Content should be the same versions on the Source and the Target.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<strong>Match Mode</strong>: How WPSiteSync should match posts on the Target. Searches for matching Content on Target site based on "Post Title" (default), "Post Slug", "Post Title, then Post Slug", or "Post Slug, then Post Title".', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<strong>Roles</strong>: The Roles that will be allowed to perform Syncing operations. Only Roles with the "edit_posts" capability will be shown. The "Administrator" Role is always allowed to perform operations.', 'wpsitesynccontent') . '</p>'
+				'<p>' . __('<strong>Roles</strong>: The Roles that will be allowed to perform Syncing operations from the Source site. Only Roles with the "edit_posts" capability will be shown. The "Administrator" Role is always allowed to perform operations.', 'wpsitesynccontent') . '</p>'
 //				'<p>' . __('<strong>Authentication Salt:</strong>: Enter a salt to use when Content is sent to current site or leave blank.', 'wpsitesynccontent') . '</p>' .
-//				'<p>' . __('<strong>Minimum Role allowed to SYNC Content</strong>: Select minimum role of user who can Sync Content to current site.', 'wpsitesynccontent') . '</p>'
 		));
 		$screen->add_help_tab(array(
 			'id'		=> 'sync-settings-terms',
@@ -812,7 +833,7 @@ class SyncSettings extends SyncInput
 				'<p>' . __('<b>Target</b> - The website that you will be Pushing/Syncing Content to. This is the authoritative or live site.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<b>Push</b> - Moving Content from the Source to the Target website.', 'wpsitesynccontent') . '</p>' .
 				'<p>' . __('<b>Pull</b> - Moving Content from the Target to the Source website.', 'wpsitesynccontent') . '</p>' .
-				'<p>' . __('<b>Content</b> - The data that is being Syncd between websites. This can be Posts, Pages or Custom Post Types, User Information, Comments, and more, depending on the Sync Add-ons that you have installed.', 'wpsitesynccontent') . '</p>'
+				'<p>' . __('<b>Content</b> - The data that is being Syncd between websites. This can be Posts, Pages or Custom Post Types, Products, User Information, Comments, and more, depending on the Sync Add-ons that you have installed.', 'wpsitesynccontent') . '</p>'
 		));
 
 		do_action('spectrom_sync_contextual_help', $screen);

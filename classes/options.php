@@ -177,22 +177,25 @@ class SyncOptions
 	 */
 	public static function has_cap()
 	{
+		if (is_multisite() && is_super_admin())					// always allow admins #244
+			return TRUE;
+
 		$min_role = self::get('min_role', 'author');
 		$roles = self::get('roles', '');
 		if (empty($roles)) {
 			// if the roles are empty, adjust setting based on default roles from v1.4
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' roles are empty; min_role=' . var_export($min_role, TRUE));
 			switch ($min_role) {
-				case 'administrator':
-				default:
-					$roles = '|administrator|';
-					break;
-				case 'editor':
-					$roles = '|editor|administrator|';
-					break;
-				case 'author':
-					$roles = '|author|editor|administrator|';
-					break;
+			case 'administrator':
+			default:
+				$roles = '|administrator|';
+				break;
+			case 'editor':
+				$roles = '|editor|administrator|';
+				break;
+			case 'author':
+				$roles = '|author|editor|administrator|';
+				break;
 			}
 		}
 		$current_user = wp_get_current_user();

@@ -1,13 +1,17 @@
 /*
- * @copyright Copyright (C) 2014-2019 SpectrOMtech.com. - All Rights Reserved.
- * @author SpectrOMtech.com <SpectrOMtech.com>
- * @url https://wpsitesync.com/license
+ * @copyright Copyright (C) 2015-2019 WPSiteSync.com. - All Rights Reserved.
+ * @author WPSiteSync.com <hello@WPSiteSync.com>
+ * @url https://wpsitesync.com/
  * The PHP code portions are distributed under the GPL license. If not otherwise stated, all images,
  * manuals, cascading style sheets, and included JavaScript *are NOT GPL*, and are released under the
  * SpectrOMtech Proprietary Use License v1.0
  * More info at https://wpsitesync.com
  */
 
+/**
+ * Javascript handlers for WPSiteSync's settings page
+ * @returns {SyncSettings} instance
+ */
 function SyncSettings()
 {
 	this.$form = null;
@@ -40,9 +44,9 @@ SyncSettings.prototype.init = function()
 //		}
 //	});
 
-	jQuery('.sync-license-input', '.spectrom-sync-settings').on('keyup', function() {
-		jQuery('button.sync-license', '.spectrom-sync-settings').attr('disabled', 'disabled');
-	});
+//	jQuery('.sync-license-input', '.spectrom-sync-settings').on('keyup', function() {
+//		jQuery('button.sync-license', '.spectrom-sync-settings').attr('disabled', 'disabled');
+//	});
 };
 
 /**
@@ -57,11 +61,13 @@ SyncSettings.prototype.activate_api = function(op, name)
 	else
 		jQuery('#sync-license-msg-' + name).html(jQuery('#sync-deactivating-msg').html());
 	jQuery('#sync-license-msg-' + name).show();
+	var lic_key = jQuery('#spectrom-form-' + name).val();
 
 	var data = {
 		action: 'spectrom_sync',
 		operation: op,
-		extension: name
+		extension: name,
+		key: lic_key
 	};
 
 	jQuery.ajax({
@@ -81,12 +87,22 @@ SyncSettings.prototype.activate_api = function(op, name)
 	});
 };
 
+/**
+ * Button callback for activating license key
+ * @param {object} el Button element generating the click
+ * @param {string} name Name of add-on being activated
+ */
 SyncSettings.prototype.activate = function(el, name)
 {
 	jQuery(el).blur();
 	this.activate_api('activate', name);
 };
 
+/**
+ * Button callback for deactivating license key
+ * @param {object} el Button element generating the click
+ * @param {string} name Name of add-on being deactivated
+ */
 SyncSettings.prototype.deactivate = function(el, name)
 {
 	jQuery(el).blur();
@@ -94,7 +110,29 @@ SyncSettings.prototype.deactivate = function(el, name)
 };
 
 /**
+ * Button callback for onblur event for license key field
+ * @param {object} el The input field containing the license key
+ */
+SyncSettings.prototype.license_change = function(el)
+{
+//console.log('.license_change()');
+	var id = jQuery(el).attr('id');
+	var ext_name = id.replace('spectrom-form-sync_', '');
+//console.log('id=' + id + ' name=' + ext_name);
+
+	var lic_key = jQuery('#spectrom-form-sync_' + ext_name).val();
+//console.log('key=' + lic_key)
+	if (lic_key.length !== 32)
+		return;
+
+	// enable activate/deactivate buttons
+	jQuery('#sync-license-act-sync_' + ext_name).removeAttr('disabled');
+	jQuery('#sync-license-deact-sync_' + ext_name).removeAttr('disabled');
+};
+
+/**
  * Verifies the target settings
+ * @param {object} e The event generating the submit
  */
 SyncSettings.prototype.on_submit = function(e)
 {

@@ -79,7 +79,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error: ' . var_export($res, TRUE)
 			}
 
 			$this->_license_data = json_decode(wp_remote_retrieve_body($res));
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' decoded: ' . var_export($this->_license_data, TRUE));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' decoded: ' . SyncDebug::arr_sanitize(get_object_vars($this->_license_data)));
 			// check results for get_version
 			if (isset($params['body']['edd_action']) && 'get_version' === $params['body']['edd_action']) {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' edd get_version request');
@@ -145,6 +145,18 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' processed all licensing servers; 
 		if (empty(self::$_licenses[$name]))
 			return FALSE;
 		return self::$_licenses[$name];
+	}
+
+	/**
+	 * Sets a key
+	 * @param string $name Add-on name
+	 * @param string $key Key
+	 */
+	public function set_key($name, $key)
+	{
+		$this->_load_licenses();
+		self::$_licenses[$name] = $key;
+		self::$_dirty = TRUE;
 	}
 
 	/**

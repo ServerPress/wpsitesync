@@ -20,7 +20,7 @@ class SyncAttachModel
 		$query = $wpdb->prepare($sql, $guid);
 		$res = $wpdb->get_results($query, OBJECT);
 SyncDebug::log(__METHOD__.'() sql=' . $query);
-SyncDebug::log(' - res=' . var_export($res, TRUE));
+SyncDebug::log(' - res=' . SyncDebug::arr_sanitize($res));
 
 		// check if not found and an extended search has been requested
 		if (0 === count($res) && $extended_search) {
@@ -58,6 +58,40 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' res=' . var_export($res, TRUE));
 			}
 		}
 		return $res;
+	}
+
+	/**
+	 * Searches for an attachment by guid and by name
+	 * @param string $path The full name of the attachment to search for
+	 * @param string $year The four digit year of the attachment's post date
+	 * @param string $month The two digit month of the attachment's post date
+	 * @return int|boolean The postID of the attachment if found or FALSE if not found
+	 */
+	public function search($path, $year = '', $month = '')
+	{
+		$attach_id = $this->get_id_by_name($path);
+
+		if (FALSE === $attach_id) {
+			$search = $path;
+			if (!empty($month) && 2 === strlen($month))
+				$search = $month . '/' . $search;
+			if (!empty($yeat) && 4 === strlen($year))
+				$search = $year . '/' . $search;
+			$search = '/' . $search;
+
+			global $wpdb;
+			$sql = "SELECT *
+				FROM `{$wpdb->posts}`
+				WHERE `post_type`='attachment' AND `guid` LIKE %s
+				LIMIT 1";
+			$query = $wpdb->prepare($sql, '%' . $search);
+			$res = $wpdb->get_results($query, OBJECT);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' sql=' . $query . ' res=' . var_export($res, TRUE));
+			if (NULL !== $res && isset($res[0]) && isset($res[0]->ID))
+				$attach_id = abs($res[0]->ID);
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' guid search=' . $attach_id);
+		}
+		return $attach_id;
 	}
 
 	/**

@@ -27,14 +27,44 @@ class SyncDebug
 	}
 
 	/**
+	 * Sanitizes array content, removing any tokens, passwords, and reducing large content before converting to string
+	 * @param array $arr Array to be dumped
+	 * @return string Array contents dumped to a string
+	 */
+	public static function arr_sanitize($arr)
+	{
+		if (isset($arr['username']))
+			$arr['username'] = 'target-user';
+		if (isset($arr['password']))
+			$arr['password'] = 'target-password';
+		if (isset($arr['token']))
+			$arr['token'] = 'xxx';
+		if (isset($arr['customer_email']))
+			$arr['customer_email'] = 'mail@domain.com';
+		if (isset($arr['contents']) && strlen($arr['contents']) > 1024)
+			$arr['contents'] = strlen($arr['contents']) . ' bytes...truncated...';
+
+		if (isset($arr[0]) && isset($arr[0]->post_password)) {
+			$idx = 0;
+			foreach ($arr as $obj) {
+				if (!empty($obj->post_password))
+					$arr[$idx]->post_password = 'xxx';
+			}
+		}
+
+		$ret = var_export($arr, TRUE);
+		return $ret;
+	}
+
+	/**
 	 * Perform logging
 	 * @param string $msg The message to log
 	 * @param boolean TRUE if a backtrace is to be logged after the message is logged
 	 */
 	public static function log($msg = NULL, $backtrace = FALSE)
 	{
-		if (!self::$_debug && !defined('WP_DEBUG') || !WP_DEBUG)
-			return;
+//		if (!self::$_debug && !defined('WP_DEBUG') || !WP_DEBUG)
+//			return;
 
 		if (self::$_debug_output)
 			echo $msg, PHP_EOL;

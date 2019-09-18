@@ -174,6 +174,23 @@ $prep = $wpdb->prepare($sql, $source, $site_key, $name, $token, $name, $token);
 	}
 
 	/**
+	 * Removes a Token from the `spectrom_sync_source` table
+	 * @param string $domain The domain name that the Token is associated with
+	 * @param string $site_key The Site Key. If empty will assume a Target Token, if provided will assume a Source Token.
+	 */
+	public function remove_token($domain, $site_key = NULL)
+	{
+		global $wpdb;
+		$domain = $this->_fix_domain($domain);
+		$sql = "DELETE FROM `{$this->_sources_table}`
+			WHERE `domain`=%s AND `site_key`=%s
+			LIMIT 1";
+		$query = $wpdb->prepare($sql, $domain, (NULL === $site_key ? '' : $site_key));
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' running ' . $query);
+		$wpdb->query($query);
+	}
+
+	/**
 	 * Utility/Debug function to show list of sources
 	 */
 /*	private function _show_sources()

@@ -12,10 +12,20 @@ class SyncActivate
 
 	// these items are stored under the 'spectrom_sync_settings' option
 	protected $default_config = array(
-		'url' => '',
+		'version' => '',
+		'host' => '',
 		'username' => '',
 		'password' => '',
-		'site_key' => ''
+		'site_key' => '',
+		'target_site_key' => '',
+		'auth' => 0,
+		'strict' => '1',
+		'salt' => '',
+		'remove' => '0',
+		'match_mode' => 'title',
+		'min_role' => 'author',
+		'roles' => '|author|editor|administrator|',
+		'report' => '0',
 	);
 
 	/*

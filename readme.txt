@@ -112,6 +112,24 @@ More complex data, such as WooCommerce products, Forms (like Gravity Forms or Ni
 2. WPSiteSync for Content metabox.
 
 == Changelog ==
+= 1.5.3 - Sep 17, 2019 =
+* fix: Address compatability issue with WPML's metabox of post edit page. (Thanks Autumn C.)
+* fix: Add detection of Apache version as well as 2.2 and 2.4 compatible .htaccess rules.
+* fix: Check for empty list of saved blocks in Push operations to avoid warning messages.
+* fix: Fix handing of 'getinfo' API response data if warnings are present with JSON response.
+* fix: Address problem with Network Administrators not always being able to edit settings on a MultiSite. (Thanks Mark R.)
+* fix: Custom Roles with 'edit_pages' Capability can now be configured and allowed to use WPSiteSync operations. (Thanks Mark R.)
+* enhancement: Add detection of mod_security blocking API requests; provide better description of problem in this case. (Thanks Veldin H.)
+* enhancement: Add helper methods, SyncApiResponse->get_error_message() and get_notice_message().
+* enhancement: Improve descriptions on Settings Help page.
+* enhancement: Add more marketing messages for Dashboard Widget and Settings page.
+* enhancement: Add new attachment search helper method needed for Beaver Builder audio module.
+* enhancement: Add scrubbing before logging in case any sensitive information is contained arrays.
+* enhancement: Rework licensing page to reduce required page submissions.
+* enhancement: Improve messaging when a Parent Page needs to be Pushed.
+* enhancement: Store taxonomy id conversion values to allow updating of taxonomy IDs in Gutenberg Blocks.
+* enhancement: Refactor code in Gutenberg Blocks add-on so it can be shared by other add-ons that update Blocks.
+
 = 1.5.2 - May 23, 2019 =
 * fix: correctly re-display the WPSiteSync metabox when hiding then showing the Gutenberg Components menu. (Thanks John H.)
 * fix: display the WPSiteSync metabox after click on "Publish" button in Gutenberg editor.

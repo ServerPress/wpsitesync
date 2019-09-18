@@ -22,6 +22,7 @@ class SyncAuth extends SyncInput
 	{
 //SyncDebug::log(__METHOD__.'()');
 		$info = array();
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' post data=' . var_export($_POST, TRUE));
 		$username = $this->post('username', NULL);
 		$password = $this->post('password', NULL);
 		$token = $this->post('token', NULL);

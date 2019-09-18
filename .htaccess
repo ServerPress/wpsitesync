@@ -1,14 +1,36 @@
-<Files *.php>
-    Order Deny,Allow
-    deny from all
-</Files>
+# Apache 2.2
+<IfModule !mod_authz_core.c>
+    Satisfy Any
 
-<Files ~*.txt>
-    Order Deny,Allow
-    deny from all
-</Files>
+    <Files *.php>
+        Require all denied
+    </Files>
 
-<files ".(xml|css|jpe?g|png|gif|js|ttf|wof|eof)$">
-    Order Allow,Deny
-    Allow from all
-</files>
+    <Files ~*.txt>
+        Order Deny,Allow
+        deny from all
+    </Files>
+
+    <files ".(xml|css|jpe?g|png|gif|js|ttf|wof|eof)$">
+        Order Allow,Deny
+        Allow from all
+    </files>
+</IfModule>
+
+
+# Apache 2.4
+<IfModule mod_authz_core.c>
+    Require all granted
+
+    <Files *.php>
+        Require all denied
+    </Files>
+
+    <Files ~*.txt>
+        Require all denied
+    </Files>
+
+    <files ".(xml|css|jpe?g|png|gif|js|ttf|wof|eof)$">
+        Require all granted
+    </files>
+</IfModule>

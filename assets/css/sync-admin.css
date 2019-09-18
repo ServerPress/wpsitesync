@@ -112,6 +112,15 @@ padding-bottom: 0px;
 padding-left: 3px;
 	vertical-align: text-top;
 }
+#spectrom_sync button#remove-association {
+	text-align: center;
+}
+#spectrom_sync button#remove-association .sync-button-icon {
+	text-align: center;
+	padding-right: 0;
+	padding-top: 4px;
+	margin-left: 0;
+}
 #spectrom_sync #sync-message-dismiss .dashicons {
 	font-size: 85%;
 	margin-left: .2rem;
@@ -140,6 +149,11 @@ padding-left: 3px;
 
 .spectrom-sync-settings .sync-settings-logo {
 	float: left;
+}
+.spectrom-sync-settings .cta-message {
+	border-left: 3px solid #e542f4;
+	margin-left: 3px;
+	padding-left: 8px;
 }
 .spectrom-sync-settings table.form-table {
 	width: 450px;

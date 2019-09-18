@@ -94,25 +94,27 @@ SyncDebug::log(__METHOD__.'() - returning');
 			$attrib .= ' placeholder="' . esc_attr($args['placeholder']) . '" ';
 
 
-		printf('<input type="text" id="spectrom-form-%s" name="spectrom_sync_settings[%s]" value="%s" %s />',
+		printf('<input type="text" id="spectrom-form-%s" name="spectrom_sync_settings[%s]" onblur="sync_settings.license_change(this);" value="%s" %s />',
 			$args['name'], $args['name'], esc_attr($args['value']), $attrib);
 
 		echo '<span id="sync-license-status-', $args['name'], '" class="sync-license-status">',
 			__('Status: ', 'wpsitesynccontent'), '<span>', $args['status'], '</span></span>';
 
-		if (!empty($args['value']) && 32 === strlen($args['value'])) {
-			echo '<button id="sync-license-act-', $args['name'], '" type="button" class="button sync-license sync-license-activate" data="', $args['name'], '" ';
-			echo ' onclick="sync_settings.activate(this, \'', $args['name'] , '\'); return false;" >';
-			_e('Activate', 'wpsitesynccontent');
-			echo '</button>';
+		$button_args = '';
+		if (empty($args['value']) || 32 !== strlen($args['value']))
+			$button_args = ' disabled="disabled" ';
 
-			echo '<button id="sync-license-deact-', $args['name'], '" type="button" class="button sync-license sync-license-deactivate" data="', $args['name'], '" ';
-			echo ' onclick="sync_settings.deactivate(this, \'', $args['name'] , '\'); return false;" >';
-			_e('Deactivate', 'wpsitesynccontent');
-			echo '</button>';
+		echo '<button id="sync-license-act-', $args['name'], '" type="button" class="button sync-license sync-license-activate" data="', $args['name'], '" ';
+		echo $button_args, ' onclick="sync_settings.activate(this, \'', $args['name'] , '\'); return false;" >';
+		_e('Activate', 'wpsitesynccontent');
+		echo '</button>';
 
-			echo '<div id="sync-license-msg-', $args['name'], '" style="display:none" class="sync-license-msg"></div>';
-		}
+		echo '<button id="sync-license-deact-', $args['name'], '" type="button" class="button sync-license sync-license-deactivate" data="', $args['name'], '" ';
+		echo $button_args, ' onclick="sync_settings.deactivate(this, \'', $args['name'] , '\'); return false;" >';
+		_e('Deactivate', 'wpsitesynccontent');
+		echo '</button>';
+
+		echo '<div id="sync-license-msg-', $args['name'], '" style="display:none" class="sync-license-msg"></div>';
 
 		if (!empty($args['description']))
 			echo '<p><em>', esc_html($args['description']), '</em></p>';
@@ -142,6 +144,8 @@ SyncDebug::log(' method=' . $_SERVER['REQUEST_METHOD']);
 
 		$lic = new SyncLicensing();
 		$out = $lic->get_license_keys();
+		if (!SyncOptions::has_cap())
+			return $out;
 
 		// sanitize values
 		foreach ($input as $name => $value) {

@@ -178,12 +178,42 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' setting error code: ' . $code);
 	}
 
 	/**
+	 * Converts error code into error message
+	 * @param int $error_code Error code to convert. If not provided, will use the local property value.
+	 * @param multi $data Optional error data used as part of the error message. If not provided, will use local property value.
+	 * @return string Error code converted to language-translated message string.
+	 */
+	public function get_error_message($error_code = NULL, $data = NULL)
+	{
+		if (NULL === $error_code)
+			$error_code = $this->error_code;
+		if (NULL === $data)
+			$data = $this->error_data;
+		$msg = SyncApiRequest::error_code_to_string($error_code, $data);
+		return $msg;
+	}
+
+	/**
 	 * Sets a notice-level code to be returned to the user
 	 * @param int $code One of `SyncApiRequest::NOTICE_*` values
 	 */
 	public function notice_code($code)
 	{
 		$this->notice_codes[] = $code;
+	}
+
+	/**
+	 * Converts notice code into notice message
+	 * @param int $notice_code Notice code to convert. If not provided, will use the local property value.
+	 * @param multi $data Optional notice data used as part of the notice message. If not provided, will assume NULL.
+	 * @return string Notice code converted to language-translated message string.
+	 */
+	public function get_notice_message($notice_code = NULL, $data = NULL)
+	{
+		if (NULL === $notice_code && count($this->notice_code) > 0)
+			$notice_code = $this->notice_codes[0];
+		$msg = SyncApiRequest::notice_code_to_string($notice_code, $data);
+		return $msg;
 	}
 
 	/**

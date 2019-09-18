@@ -9,7 +9,9 @@ class SyncAdmin
 {
 	private static $_instance = NULL;
 
-	const CONTENT_TIMEOUT = 180;			// (3 * 60) = 3 minutes
+	const CONTENT_TIMEOUT = 180;						// (3 * 60) = 3 minutes
+
+	const META_DETAILS = '_spectrom_sync_details_';		// used for caching get_details information
 
 	private function __construct()
 	{
@@ -79,20 +81,20 @@ class SyncAdmin
 		// check for minimum user role settings #122
 		if (!SyncOptions::has_cap())
 			return;
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' registering "sync"');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' registering "sync"');
 		wp_register_script('sync', WPSiteSyncContent::get_asset('js/sync.js'), array('jquery'), WPSiteSyncContent::PLUGIN_VERSION, TRUE);
 		wp_register_script('sync-settings', WPSiteSyncContent::get_asset('js/settings.js'), array('jquery'), WPSiteSyncContent::PLUGIN_VERSION, TRUE);
 
 		wp_register_style('sync-admin', WPSiteSyncContent::get_asset('css/sync-admin.css'), array(), WPSiteSyncContent::PLUGIN_VERSION, 'all');
 
 		$screen = get_current_screen();
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' screen id=' . $screen->id . ' action=' . $screen->action);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' screen id=' . $screen->id . ' action=' . $screen->action);
 		// load resources only on Sync settings page or page/post editor
 		if (/*'post' === $screen->id || 'page' === $screen->id || */
 			'settings_page_sync' === $screen->id ||
 			in_array($screen->id, array('post', 'edit-post', 'page', 'edit-page')) || 
 			in_array($screen->id, apply_filters('spectrom_sync_allowed_post_types', array('post', 'page')))) {
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' allowed post type');
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' allowed post type');
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' hook suffix=' . $hook_suffix);
 			// check for post editor page page; or post new page and Gutenberg is present
 			if (('post.php' === $hook_suffix && 'add' !== $screen->action) ||
@@ -300,6 +302,19 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' allowed post type');
 
 		// display the content details
 		$content_details = $this->get_content_details();
+
+		// add the 'remove association' button #236
+		// we do this here instead of within the get_content_details() so it's not also displayed within the Pull Search dialog box
+##		global $post;
+##		$details = $this->get_details_meta($post->ID);
+##		if (FALSE !== $details) {
+##			$content_details .= '<div id="content-association">
+##				<button id="remove-association" type="button" class="button button-primary" onclick="wpsitesynccontent.show_assoc();" title="' . __('Remove Association', 'wpsitesynccontent') . '">' .
+##				'<span class="sync-button-icon dashicons dashicons-admin-links xdashicons-tide"></span></button>' .
+##				'</div>';
+##			add_action('admin_footer', array($this, 'add_remove_assoc_dialog'));
+##		}
+
 		// TODO: set details content
 		echo '<div id="sync-details" style="display:none">';
 		echo $content_details;
@@ -393,13 +408,28 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' allowed post type');
 	}
 
 	/**
+	 * Retrieves the post details information of the Target post from local postmeta data
+	 * @param itn $post_id The post ID to retrieve the detail information about
+	 * @return object|boolean The details object if successful; otherwise FALSE
+	 */
+	public function get_details_meta($post_id)
+	{
+		$meta_key = self::META_DETAILS . sanitize_key(parse_url(SyncOptions::get('target'), PHP_URL_HOST));
+		$meta_data = get_post_meta($post_id, $meta_key, TRUE);
+//SyncDebug::log(__METHOD__.'():' . __LINE__ . ' meta key="' . $meta_key . '" data=' . var_export($meta_data, TRUE));
+		if (empty($meta_data))
+			$meta_data = FALSE;
+		return $meta_data;
+	}
+
+	/**
 	 * Obtain details about the Content from the Target site
 	 * @return string HTML contents to display within the Details section within the UI
 	 */
 	public function get_content_details()
 	{
 		global $post;
-		$meta_key = '_spectrom_sync_details_' . sanitize_key(parse_url(SyncOptions::get('target'), PHP_URL_HOST));
+		$meta_key = self::META_DETAILS . sanitize_key(parse_url(SyncOptions::get('target'), PHP_URL_HOST));
 
 		// check to see if the API call should be made
 		$run_api = FALSE;
@@ -437,31 +467,30 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - returned object: ' . var_export
 
 				// examine API response to see if Pull is running on Target
 				$pull_active = TRUE;
-				if (isset($response->result['body'])) {
-					$response_body = json_decode($response->result['body']);
-SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - result data: ' . var_export($response_body, TRUE));
-					if (NULL === $response_body) {
+				if (isset($response->response)) {
+SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - result data: ' . var_export($response->response, TRUE));
+					if (NULL === $response->response) {
 						$pull_active = FALSE;
-					} else if (SyncApiRequest::ERROR_UNRECOGNIZED_REQUEST === $response_body->error_code) {
+					} else if (SyncApiRequest::ERROR_UNRECOGNIZED_REQUEST === $response->response->error_code) {
 						$pull_active = FALSE;
-					} else if (0 !== $response_body->error_code) {
-						$msg = $api->error_code_to_string($response_body->error_code);
-						echo '<p>', sprintf(__('Error #%1$d: %2$s', 'wpsitesynccontent'), $response_body->error_code, $msg), '</p>';
+					} else if (0 !== $response->response->error_code) {
+						$msg = $api->error_code_to_string($response->response->error_code);
+						echo '<p>', sprintf(__('Error #%1$d: %2$s', 'wpsitesynccontent'), $response->response->error_code, $msg), '</p>';
 						$pull_active = FALSE;
 					}
 				}
 
 
-//			$target_post = (isset($response_body->data)) ? $response_body->data->post_data : NULL;
+//			$target_post = (isset($response->response->data)) ? $response->response->data->post_data : NULL;
 //SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - target post: ' . var_export($target_post, TRUE));
 
-				if (isset($response_body) && isset($response_body->data)) {
-					$response_data = $response_body->data;
+				if (isset($response->response) && isset($response->response->data)) {
+					$response_data = $response->response->data;
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' - response data: ' . var_export($response_data, TRUE));
 					// check for errors in 'getinfo' API call #181
-					if (0 !== $response_body->error_code) {
+					if (0 !== $response->response->error_code) {
 						$content_data = array(
-							'message' => sprintf(__('Error obtaining Target information: %1$s', 'wpsitesynccontent'), $response_body->error_message)
+							'message' => sprintf(__('Error obtaining Target information: %1$s', 'wpsitesynccontent'), $response->response->error_message)
 						);
 					// check for missing Target information as a fallback #181
 					} else if (!isset($response_data->target_post_id)) {
@@ -476,7 +505,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response missing post id. cannot 
 							'source_post_id' => $post->ID,
 							'target_post_id' => $response_data->target_post_id, // $target_post_id,
 							'post_title' => $response_data->post_title, // $target_post->post_title,
-							'post_author' => $response_data->post_author, // $response_body->data->username,
+							'post_author' => $response_data->post_author, // $response->response->data->username,
 							'feat_img' => isset($response_data->feat_img) ? $response_data->feat_img : '',
 							'modified' => $response_data->modified, // $target_post->post_modified_gmt,
 							'content' => $response_data->content . '...', // substr(strip_tags($target_post->post_content), 0, 200) . '...',
@@ -500,6 +529,29 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response missing post id. cannot 
 			$content = SyncView::load_view('content_details', $content_data, TRUE);
 
 		return $content;
+	}
+
+	/**
+	 * Outputs the HTML for the Remove Association Dialog
+	 */
+	public function add_remove_assoc_dialog()
+	{
+		$title = __('WPSiteSync&#8482;: Remove Content Association', 'wpsitesynccontent');
+
+		echo '<div id="sync-remove-assoc-dialog" style="display:none" title="', esc_html($title), '">';
+			echo '<div id="spectrom_sync_remove_assoc">';
+			echo '<p>', __('This will remove the association of the current Contnet with it\'s matching post ID on the Target site. This means that the next time you Push this Content it will perform a new search on the Target site for matching Content rather than updating the post ID that was previously connected with this Content. For more information, you can read our <a href="https://wpsitesync.com/knowledgebase/removing-associations">Knowledge Base Article</a>.', 'wpsitesynccontent'), '</p>';
+			echo '<p>', __('To remove the association and unlink the current Content with it\'s Content on the Target site, click the "Remove Association" button below. Otherwise, press Escape or click on the Cancel button.', 'wpsitesynccontent'), '</p>';
+
+			echo '<button id="sync-remove-assoc-api" type="button" onclick="wpsitesynccontent.remove_assoc(); return false;" class="button button-primary">',
+				'<span class="sync-button-icon dashicons dashicons-admin-links"></span>', __('Remove Association', 'wpsitesynccontent'),
+				'</button>';
+			echo '&nbsp;';
+			echo '<button id="sync-remove-assoc-cancel" type="button" onclick="jQuery(\'#sync-remove-assoc-dialog\').dialog(\'close\');" class="button">',
+				__('Cancel', 'wpsitesynccontent'),
+				'</button>';
+			echo '</div>';
+		echo '</div>'; // close dialog HTML
 	}
 
 	/**

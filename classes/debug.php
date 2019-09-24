@@ -63,8 +63,8 @@ class SyncDebug
 	 */
 	public static function log($msg = NULL, $backtrace = FALSE)
 	{
-//		if (!self::$_debug && !defined('WP_DEBUG') || !WP_DEBUG)
-//			return;
+		if (!self::$_debug && !defined('WP_DEBUG') || !WP_DEBUG)
+			return;
 
 		if (self::$_debug_output)
 			echo $msg, PHP_EOL;

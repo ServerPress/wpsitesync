@@ -948,6 +948,8 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' source ref id (' . $source_ref_id
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' unrecognized block type "' . $block_name . '" - sending through filter');
 								// give others a chance to process this block
 								$new_content = apply_filters('spectrom_sync_process_gutenberg_block', $content, $block_name, $json, $target_post_id, $start, $end, $pos);
+								// have to guess at new length of json object based on difference between old and new content
+								$new_obj_len = strlen($json) + (strlen($new_content) - strlen($content));
 								if ($content !== $new_content) {		// check to see if add-ons made any modifications
 									$content = $new_content;
 									$updated = TRUE;

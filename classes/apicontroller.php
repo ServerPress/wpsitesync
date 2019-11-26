@@ -287,6 +287,7 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' response has no errors');
 	 */
 	public function push(SyncApiResponse $response)
 	{
+		global $wpdb;
 SyncDebug::log(__METHOD__.'():'.__LINE__);
 SyncDebug::log(' post data: ' . var_export($_POST, TRUE));
 //SyncDebug::log(' request data: ' . var_export($_REQUEST, TRUE));
@@ -415,6 +416,12 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' content: ' . $post_data['post_con
 				if (is_wp_error($res)) {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' error in wp_update_post() ' . $res->get_error_message());
 					$response->error_code(SyncApiRequest::ERROR_CONTENT_UPDATE_FAILED, $res->get_error_message());
+				} else {
+					// also update the date modified
+					$wpdb->update( $wpdb->posts, array(
+						'post_modified'=>$post_data['post_modified'],
+						'post_modified_gmt' => $post_data['post_modified_gmt']),
+						array('ID'=>$post_data['ID']));
 				}
 			} else {
 				$response->error_code(SyncApiRequest::ERROR_NO_PERMISSION);

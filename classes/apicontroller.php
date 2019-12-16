@@ -439,6 +439,11 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' check permission for creating new
 				unset($new_post_data['guid']);
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' content: ' . $post_data['post_content']);
 				$target_post_id = wp_insert_post($new_post_data); // ;here;
+				// also update the date modified
+				$wpdb->update( $wpdb->posts, array(
+					'post_modified'=>$post_data['post_modified'],
+					'post_modified_gmt' => $post_data['post_modified_gmt']),
+					array('ID'=>$target_post_id));
 			} else {
 SyncDebug::log(__METHOD__.'():' . __LINE__ . ' user does not have permission to update content');
 				$response->error_code(SyncApiRequest::ERROR_NO_PERMISSION);

@@ -44,7 +44,7 @@ SyncDebug::log(__METHOD__."('{$operation}')");
 		header('Content-Type: application/json; charset=utf-8');
 		header('Content-Encoding: ajax');
 		header('Cache-Control: private, max-age=0');
-		header('Expires: -1');
+        header('Expires: ' . gmdate('D, d M Y H:i:s \G\M\T', time() - 24 * 60 * 60)); // -24 hr
 
 		// perform authentication checking: must be logged in, an 'Author' role or higher
 		if (!is_user_logged_in()) {

@@ -480,6 +480,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' starting logger');
 		// TODO: note, this is in $_POST['post_data']['post_meta']
 		$post_meta = $this->post_raw('post_meta', array());
 
+        // allow addons to modify content postmeta
+        $post_meta = apply_filters('spectrom_sync_filter_pre_push_postmeta', $post_meta);
+
 		// handle stickiness
 		$sticky = $this->post_int('sticky', 0);
 		if (1 === $sticky)

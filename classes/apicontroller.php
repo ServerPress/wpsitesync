@@ -310,6 +310,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' syncing post data Source ID#'. $t
 		// let add-ons know we're about to process a Push operation
 		do_action('spectrom_sync_pre_push_content', $post_data, $this->source_post_id, $target_post_id, $response);
 
+        // allow addons to modify post_data before saving to destination.
+        $post_data = apply_filters('spectrom_sync_filter_pre_push_content', $post_data);
+
 		// allow add-ons to modify the content type
 		$content_type = apply_filters('spectrom_sync_push_content_type', 'post', $target_post_id, $this);
 
@@ -476,6 +479,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' starting logger');
 		// sync metadata
 		// TODO: note, this is in $_POST['post_data']['post_meta']
 		$post_meta = $this->post_raw('post_meta', array());
+
+        // allow addons to modify content postmeta
+        $post_meta = apply_filters('spectrom_sync_filter_pre_push_postmeta', $post_meta);
 
 		// handle stickiness
 		$sticky = $this->post_int('sticky', 0);

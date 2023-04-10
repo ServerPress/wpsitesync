@@ -310,6 +310,9 @@ SyncDebug::log(__METHOD__.'():' . __LINE__ . ' syncing post data Source ID#'. $t
 		// let add-ons know we're about to process a Push operation
 		do_action('spectrom_sync_pre_push_content', $post_data, $this->source_post_id, $target_post_id, $response);
 
+        // allow addons to modify post_data before saving to destination.
+        $post_data = apply_filters('spectrom_sync_filter_pre_push_content', $post_data);
+
 		// allow add-ons to modify the content type
 		$content_type = apply_filters('spectrom_sync_push_content_type', 'post', $target_post_id, $this);
 
